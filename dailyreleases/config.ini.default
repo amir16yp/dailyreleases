@@ -1,0 +1,56 @@
+[main]
+# mode =
+#   immediately : Immediately generate and submit post to own subreddit. PM reddit notify_users with link to post. This
+#     mode is useful for cron jobs, e.g. generating at midnight: '0 0 * * * /usr/local/bin/python3.7 -m dailyreleases'.
+#   reply : Listen for reddit PMs; on receipt, generate and submit post to own subreddit. Reply with link to post.
+#   midnight : Like 'immediately', but run continuously, generating and submitting post at midnight every day.
+#   test : Generate and print to log and console. Nothing is posted to reddit.
+mode = test
+
+
+[logging]
+level = DEBUG
+backup_count = 10
+
+
+[reddit]
+# Create personal use script on https://reddit.com/prefs/apps/ from the bot's reddit account, and register it for
+# production API use.
+client_id = xxxxxxxxxxxxxx
+client_secret = xxxxxxxxxxx-xxxxxxxxxxxxxxx
+user_agent = <platform>:<app ID>:<version string> (by /u/<reddit username>)
+username = xxxxxxxxxxxxx
+password = xxxxxxx
+
+# List of users who are authorized to start the generation by PM'ing the bot. Only applies to 'reply' mode.
+authorized_users = spez,Deimorz,kn0thing
+
+# List of users who should receive a PM on generation. Only applies to 'immediately' and 'midnight' mode, since the
+# sender will receive the PM in 'reply' mode.
+notify_users = chooter,alienth
+
+# Reddit perceives PMs with many links as spam, so the bot posts the code for the generated post in its own subreddit
+# instead of sending it directly in the PM.
+bot_subreddit = dailyreleases
+
+# It also needs to know of the subreddit where the daily releases threads are posted so it can link to the previous one.
+posts_subreddit = crackwatch
+
+
+[google]
+# Create a custom search engine on https://cse.google.com/cse/create/new:
+# - Sites to search can be anything, e.g. "example.com".
+# - After creation, delete the url under "Sites to search" and set "Search the entire web" to OFF. (Yes, OFF!).
+# - "Image search" OFF.
+# - Find search engine ID (cx) on the setup-page for the custom search engine.
+# - Get the key on https://developers.google.com/custom-search/json-api/v1/introduction.
+cx = xxxxxxxxxxxxxxxxxxxxx:xxxxxxxxxxx
+key = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+[discord]
+webhook_url = https://discord.com/api/webhooks/????
+
+[web]
+# Number of seconds to cache web requests (google, steam etc.). May help reduce the number of requests if the same game
+# has multiple releases on the same day.
+cache_time = 600
