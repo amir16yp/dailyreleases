@@ -6,7 +6,7 @@
 3. open a terminal (or command prompt on windows) in the project directory
 4. on linux: `python3 setup.py install`. on windows: `py setup.py install`.
 5. run it. on linux :`python3 -m dailyreleases`. on windows: `py -m dailyreleases`
-6. edit the config file on linux: `nano ~/.dailyreleases/config.ini`. on windows: 'notepad.exe %USERPROFILE%\.dailyreleases\config.ini`. 
+6. edit the config file on linux: `nano ~/.dailyreleases/config.ini`. on windows: `notepad.exe %USERPROFILE%\.dailyreleases\config.ini`. 
 7. run it 24/7: on linux: create a systemd service. on windows: use task scheduler or use an infinite looping batch script.
 
 ### Systemd service
