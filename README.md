@@ -1,5 +1,4 @@
 # Daily Releases
-
 ## Installation and Usage
 1. download the zip file/git clone the project
 2. extract it
@@ -43,3 +42,5 @@ goto a
 pause
 ```
 press CTRL + s and save as a .bat file
+## Credits
+Originally developed by [Casper V. Kristensen](https://git.caspervk.net/caspervk/). To view the changes I made as the license requires, view the commit history.
