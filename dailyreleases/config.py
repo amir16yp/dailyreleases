@@ -32,7 +32,7 @@ def read_config() -> configparser.ConfigParser:
 
 CONFIG = read_config()
 CONFIG_DICT = {s:dict(CONFIG.items(s)) for s in CONFIG.sections()}
-logger.info("USING CONFIG:\n" + dumps(CONFIG_DICT, indent=2))
+logger.debug("USING CONFIG:\n" + dumps(CONFIG_DICT, indent=2))
 
 def logging_config(file, level, backup_count) -> dict:
     return {

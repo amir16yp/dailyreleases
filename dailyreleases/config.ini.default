@@ -7,7 +7,10 @@
 #   test : Generate and print to log and console. Nothing is posted to reddit.
 mode = immediately
 
-# how many times to retry if fails to post on reddit
+# api that converts epic's offerid to a store url id
+# you can run your own using this script: https://github.com/amir16yp/EpicInfo-API/blob/main/EpicInfo.py, nginx and a cronjob
+egs_offeridapi_url = https://raw.githubusercontent.com/sffxzzp/EpicInfo/main/offerid.json
+# how many times to retry if fails to post
 retry = 3
 
 [logging]

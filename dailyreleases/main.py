@@ -41,6 +41,7 @@ def at_midnight() -> None:
             until_midnight = midnight - now
             logger.info(f"Waiting {until_midnight} until midnight..")
             sleep(until_midnight.total_seconds())
+            epic.load_offerid_json()
             generate(
                 post=True, pm_recipients=CONFIG["reddit"]["notify_users"].split(",")
             )
