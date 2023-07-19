@@ -39,13 +39,10 @@ def search(game_name: str) -> Optional[str]:
                     if element["title"].lower() == match.lower():
                         if offerid_json == {}:
                             load_offerid_json()
-                        url = "https://store.epicgames.com/en-US/p" + offerid_json[element['id']]
+                        url = "https://store.epicgames.com/en-US/p/" + offerid_json[element['id']]
                         logger.debug("Best match is '%s' '%s'", element["title"], url)
                         return url
     except Exception as e:
         print("Error searching in Epic Games Store:", e)
     return None
 
-# if run as a standalone, run a test
-#if __name__ == "__main__":
-#    print(search("Among Us"))
