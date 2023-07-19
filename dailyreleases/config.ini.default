@@ -5,8 +5,10 @@
 #   reply : Listen for reddit PMs; on receipt, generate and submit post to own subreddit. Reply with link to post.
 #   midnight : Like 'immediately', but run continuously, generating and submitting post at midnight every day.
 #   test : Generate and print to log and console. Nothing is posted to reddit.
-mode = test
+mode = immediately
 
+# how many times to retry if fails to post on reddit
+retry = 3
 
 [logging]
 level = DEBUG
@@ -16,6 +18,7 @@ backup_count = 10
 [reddit]
 # Create personal use script on https://reddit.com/prefs/apps/ from the bot's reddit account, and register it for
 # production API use.
+enable = yes
 client_id = xxxxxxxxxxxxxx
 client_secret = xxxxxxxxxxx-xxxxxxxxxxxxxxx
 user_agent = <platform>:<app ID>:<version string> (by /u/<reddit username>)

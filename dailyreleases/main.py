@@ -3,7 +3,7 @@ from datetime import time, datetime, timedelta
 from time import sleep
 
 import prawcore
-
+from .stores import epic
 from . import __version__, reddit
 from .config import CONFIG
 from .generation import generate

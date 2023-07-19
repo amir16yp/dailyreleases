@@ -122,7 +122,7 @@ def generate_post(releases: Releases) -> str:
     return post_str
 
 
-@util.retry(attempts=3, delay=120)
+@util.retry(attempts=int(CONFIG['main']['retry']), delay=120)
 def generate(post=False, pm_recipients=None) -> None:
     logger.info(
         "-------------------------------------------------------------------------------------------------"
@@ -145,7 +145,12 @@ def generate(post=False, pm_recipients=None) -> None:
         webhook = DiscordWebhook(url=webhook_url, content=title)
         webhook.add_file(generated_post.encode(), filename=title + '.txt')
         webhook.execute()
-
+        if CONFIG["reddit"]["enable"] == "no":
+            return
+        elif CONFIG["reddit"]["enable"] == "yes":
+            pass
+        else:
+            logger.info("reddit is neither disabled nor enabled in config, assuming enabled")
         # Post to bot's own subreddit
         bot_subreddit = CONFIG["reddit"]["bot_subreddit"]
         reddit_src_post = reddit.submit_post(f"{title} - Source", generated_post_src, bot_subreddit)

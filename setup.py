@@ -31,6 +31,6 @@ setup(
     packages=find_packages(exclude=["tests"]),
     include_package_data=True,
     package_data={"dailyreleases": ["*.default"]},
-    install_requires=["praw==6.4.0", "beautifulsoup4==4.7.1", 'discord-webhook'],
+    install_requires=["praw", "beautifulsoup4==4.7.1", 'discord-webhook', 'epicstore_api'],
     entry_points={"console_scripts": ["dailyreleases = dailyreleases.main:main"]},
 )
