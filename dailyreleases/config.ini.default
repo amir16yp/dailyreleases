@@ -55,7 +55,8 @@ key = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 [discord]
 webhook_url = https://discord.com/api/webhooks/????
-
+debug_webhook_url = https://discord.com/api/webhooks/????
+enable_debughook = no
 [web]
 # Number of seconds to cache web requests (google, steam etc.). May help reduce the number of requests if the same game
 # has multiple releases on the same day.
