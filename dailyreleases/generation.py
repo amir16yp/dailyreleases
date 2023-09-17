@@ -134,7 +134,7 @@ def generate(post=False, pm_recipients=None) -> None:
     releases = parsing.parse_pres(pre for pre in pres if pre.dirname not in processed)
 
     # The date of the post changes at midday instead of midnight to allow calling script after 00:00
-    title = f"Daily Releases ({(datetime.utcnow() - timedelta(hours=12)).strftime('%B %-d, %Y')})"
+    title = f"Daily Releases ({(datetime.utcnow() - timedelta(hours=12)).strftime('%B %d, %Y')})"
 
     generated_post = generate_post(releases)
     generated_post_src = textwrap.indent(generated_post, "    ")
