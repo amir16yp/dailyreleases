@@ -5,7 +5,7 @@
 #   reply : Listen for reddit PMs; on receipt, generate and submit post to own subreddit. Reply with link to post.
 #   midnight : Like 'immediately', but run continuously, generating and submitting post at midnight every day.
 #   test : Generate and print to log and console. Nothing is posted to reddit.
-mode = immediately
+mode = test
 
 # api that converts epic's offerid to a store url id
 # you can run your own using this script: https://github.com/amir16yp/EpicInfo-API/blob/main/EpicInfo.py, nginx and a cronjob

@@ -4,6 +4,7 @@ import time
 from functools import wraps
 from typing import Sequence, List
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,17 +33,15 @@ def humanize(n: int, precision=2, prefix="bin", suffix="B") -> str:
     return "{1:.{0}f}".format(precision, n / factor).rstrip("0").rstrip(".") + suffix
 
 
-def case_insensitive_close_matches(
-    word: str, possibilities: Sequence[str], n=3, cutoff=0.6
-) -> List[str]:
+def case_insensitive_close_matches(word: str, possibilities: Sequence[str],
+                                   n=3, cutoff=0.6) -> List[str]:
     """
-    Python's difflib.get_close_matches does case sensitive sequence matching, this function decorates the library
-    function to make it case insensitive.
+    Python's difflib.get_close_matches does case sensitive sequence matching,
+    this function decorates the library function to make it case insensitive.
     """
     possibilities = {sequence.lower(): sequence for sequence in possibilities}
     close_matches = difflib.get_close_matches(
-        word.lower(), possibilities, n=n, cutoff=cutoff
-    )
+        word.lower(), possibilities, n=n, cutoff=cutoff)
     return [possibilities[m] for m in close_matches]
 
 

@@ -1,15 +1,13 @@
 import logging
 import re
-
 import praw
 from praw.models import Submission
-
-from .config import CONFIG
+from .Config import CONFIG
 
 logger = logging.getLogger(__name__)
 
 
-praw = praw.Reddit(**CONFIG["reddit"])
+praw = praw.Reddit(**CONFIG.CONFIG["reddit"])
 
 
 def send_pm(recipient, title, text) -> None:
@@ -25,10 +23,7 @@ def submit_post(title, text, subreddit) -> Submission:
 def get_previous_daily_post(subreddit) -> Submission:
     logger.info("Getting previous daily post from r/%s", subreddit)
     posts = praw.subreddit(subreddit).search(
-        'title:"daily releases"', sort="new", syntax="lucene", time_filter="week"
-    )
-    return next(
-        p
-        for p in posts
-        if re.search("daily release.*[(].* \d\d\d\d[)]", p.title, flags=re.IGNORECASE)
-    )
+        'title:"daily releases"', sort="new", syntax="lucene",
+        time_filter="week")
+    return next(p for p in posts if re.search(
+        "daily release.*[(].* \d\d\d\d[)]", p.title, flags=re.IGNORECASE))

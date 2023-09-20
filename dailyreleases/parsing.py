@@ -1,52 +1,13 @@
 import logging
 import re
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
 from typing import List, Dict, Iterable
 
-from . import stores
-from .predbs import Pre
-from .stores import steam
+from .Pre import Pre
+from .stores.StoreHandler import StoreHandler
+from .stores.Release import Release, ReleaseType, Platform
 
 logger = logging.getLogger(__name__)
-
-
-class ReleaseType(str, Enum):
-    GAME = "Game"
-    UPDATE = "Update"
-    DLC = "DLC"
-
-    def __str__(self) -> str:
-        return self.value
-
-
-class Platform(str, Enum):
-    WINDOWS = "Windows"
-    OSX = "Mac OSX"
-    LINUX = "Linux"
-
-    def __str__(self) -> str:
-        return self.value
-
-
-@dataclass
-class Release:
-    dirname: str
-    nfo_link: str
-    timestamp: datetime
-    rls_name: str  # dirname without group
-    group: str
-    game_name: str
-    type: ReleaseType
-    platform: Platform
-    store_links: Dict[str, str] = field(default_factory=dict)
-    tags: List[str] = field(default_factory=list)
-    highlights: List[str] = field(default_factory=list)
-    score: int = (
-        -1
-    )  # score and number of reviews is -1 by default; it is updated if the game exists on Steam
-    num_reviews: int = -1
 
 
 class ParseError(Exception):
@@ -206,7 +167,8 @@ def parse_pre(pre: Pre, offline=False) -> Release:
         return release
 
     # Find store links
-    release.store_links = stores.find_store_links(game_name)
+    storehandler = StoreHandler()
+    release.store_links = storehandler.find_store_links(game_name)
 
     # No store link? Probably software and not a game
     if not release.store_links:
@@ -215,7 +177,7 @@ def parse_pre(pre: Pre, offline=False) -> Release:
     # If one of the store links we found is to Steam, use their API to get (better) information about the game.
     if "Steam" in release.store_links:
         try:
-            steam.update_info(release)
+            storehandler.steam.update_info(release)
         except Exception as e:  # a lot of stuff can go wrong with Steam's API, better catch everything
             logger.error(
                 "Failed to update release info using Steam's API on %s", release

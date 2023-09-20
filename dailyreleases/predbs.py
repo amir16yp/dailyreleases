@@ -1,145 +1,144 @@
+"""This class is used to query different PREdb APIs"""
+
 import logging
 from datetime import datetime
-from typing import NamedTuple, List
+from typing import List
 from urllib.error import HTTPError, URLError
 import mimetypes
 
-from . import cache
-from .config import CONFIG, DATA_DIR
+from .Pre import Pre
+from .Config import CONFIG
+from .APIHelper import APIHelper
 
 logger = logging.getLogger(__name__)
 
-class Pre(NamedTuple):
-    dirname: str
-    nfo_link: str
-    timestamp: datetime
 
-def download_nfo(nfo_link, dirname):
-    try:
-        r = cache.get(nfo_link)
-        content_type = r.content_type
-        print(content_type)
-        if r.status_code == 200 and content_type:
-            extension = mimetypes.guess_extension(content_type)
-            if not extension:
-                extension = '.nfo'
-            nfo_dir = DATA_DIR.joinpath("nfo")
-            nfo_dir.mkdir(parents=True, exist_ok=True)  # Create the directory if it doesn't exist
-            nfo_filename = nfo_dir.joinpath(f"{dirname}{extension}")
-            with open(nfo_filename, "wb") as nfo_file:
-                nfo_file.write(r.bytes)
-                logger.info(f"Downloaded NFO for {dirname} to {nfo_filename}")
-        else:
-            logger.warning(f"Failed to download NFO for {dirname}. Status code: {r.status_code}")
-    except (HTTPError, URLError) as e:
-        logger.warning(f"Failed to download NFO for {dirname}: {e}")
+class PREdbs(APIHelper):
+    def __init__(self):
+        self.xrel_scene_api = "https://api.xrel.to/v2/release/browse_category.json"
+        self.xrel_p2p_api = "https://api.xrel.to/v2/p2p/releases.json"
+        self.predb_api = "https://api.predb.net/"
 
-
-def get_pres() -> List[Pre]:
-    logger.info("Getting pres from predbs")
-
-    # PreDBs in order of preference
-    predbs = (get_xrel, get_xrel_p2p, get_predbde)
-    pres = {}
-    for get in reversed(predbs):
+    def download_nfo(self, nfo_link: str, dirname: str, data_dir: str):
         try:
-            pres.update(
-                (p.dirname, p) for p in get()
-            )  # override duplicate dirnames in later iterations
+            r = self.send_request(nfo_link)
+            content_type = r.content_type
+            if r.status_code == 200 and content_type:
+                extension = mimetypes.guess_extension(content_type)
+                if not extension:
+                    extension = '.nfo'
+                nfo_dir = data_dir.joinpath("nfo")
+                # Create the directory if it doesn't exist
+                nfo_dir.mkdir(parents=True, exist_ok=True)
+                nfo_filename = nfo_dir.joinpath(f"{dirname}{extension}")
+                with open(nfo_filename, "wb") as nfo_file:
+                    nfo_file.write(r.bytes)
+                    logger.info(f"Downloaded NFO for {dirname} to {nfo_filename}")
+            else:
+                logger.warning(f"Failed to download NFO for {dirname}. "
+                               f"Status code: {r.status_code}")
         except (HTTPError, URLError) as e:
-            logger.error(e)
-            logger.warning("Connection to predb failed, skipping..")
+            logger.warning(f"Failed to download NFO for {dirname}: {e}")
 
-    backup_nfos = CONFIG["main"]["backup_nfos"].lower() == "yes"
+    def get_xrel_scene(self, categories=("CRACKED", "UPDATE"),
+                       num_pages=2) -> List[Pre]:
+        logger.debug("Getting PREs from xrel.to")
 
-    for pre in pres.values():
-        if backup_nfos:
-            logger.info("starting nfo download...")
-            download_nfo(pre.nfo_link, pre.dirname)
+        xrel_releases = []
 
-    return list(pres.values())
+        for category in categories:
+            for page in range(1, num_pages):
+                parameters = {
+                    "category_name": category,
+                    "ext_info_type": "game",
+                    "per_page": 100,
+                    "page": page,
+                    }
+                release_list = self.send_request(self.xrel_scene_api,
+                                                 parameters)
+                if release_list is not None:
+                    release_list = release_list.json().get("list")
+                else:
+                    logger.error("Release list could not be retrieved.")
+                    continue
 
-def get_xrel(categories=("CRACKED", "UPDATE"), num_pages=2) -> List[Pre]:
-    logger.debug("Getting pres from xrel.to")
+                for release_info in release_list:
+                    dirname = release_info["dirname"]
+                    nfo_link = release_info["link_href"]
+                    timestamp = datetime.fromtimestamp(release_info["time"])
+                    xrel_releases.append(Pre(dirname, nfo_link, timestamp))
+                    logger.info(f"Release {dirname}, NFO: {nfo_link}")
 
-    def get_releases_in_category(category, page):
-        r = cache.get(
-            "https://api.xrel.to/v2/release/browse_category.json",
-            params={
-                "category_name": category,
-                "ext_info_type": "game",
-                "per_page": 100,
-                "page": page,
-            },
-        )
-        return r.json["list"]
+        return xrel_releases
 
-    releases = [
-        Pre(
-            dirname=rls["dirname"],
-            nfo_link=rls["link_href"],
-            timestamp=datetime.fromtimestamp(rls["time"]),
-        )
-        for category in categories
-        for page in range(1, num_pages)
-        for rls in get_releases_in_category(category, page)
-    ]
+    def get_xrel_p2p(self) -> List[Pre]:
+        logger.debug("Getting P2P pres from xrel.to")
 
-    # Logging the NFO link
-    for release in releases:
-        logger.info(f"Release: {release.dirname}, NFO Link: {release.nfo_link}")
+        xrel_releases = []
 
-    return releases
-
-def get_xrel_p2p() -> List[Pre]:
-    logger.debug("Getting P2P pres from xrel.to")
-
-    r = cache.get(
-        "https://api.xrel.to/v2/p2p/releases.json",
-        params={
+        parameters = {
             "category_id": "015d9c029",  # game
-            "per_page": 100,
-        },
-    )
+            "per_page": 100
+                      }
+        release_list = self.send_request(self.xrel_p2p_api, parameters)
+        if release_list is not None:
+            release_list = release_list.json().get("list")
+        else:
+            logger.error("Release list could not be retrieved.")
+            return xrel_releases
 
-    releases = [
-        Pre(
-            dirname=rls["dirname"],
-            nfo_link=rls["link_href"],
-            timestamp=datetime.fromtimestamp(rls["pub_time"]),
-        )
-        for rls in r.json["list"]
-    ]
+        for release_info in release_list:
+            dirname = release_info["dirname"]
+            nfo_link = release_info["link_href"]
+            timestamp = datetime.fromtimestamp(release_info["pub_time"])
+            xrel_releases.append(Pre(dirname, nfo_link, timestamp))
+            logger.info(f"Release {dirname}, NFO: {nfo_link}")
 
-    # Logging the NFO link
-    for release in releases:
-        logger.info(f"Release: {release.dirname}, NFO Link: {release.nfo_link}")
+        return xrel_releases
 
-    return releases
+    def get_predbde(self, num_pages=5) -> List[Pre]:
+        logger.debug("Getting pres from predb.net")
 
-def get_predbde(categories=("GAMES"), num_pages=5) -> List[Pre]:
-    logger.debug("Getting pres from predb.net")
+        predb_releases = []
 
-    def get_releases_in_category(category, page):
-        r = cache.get(
-            "https://api.predb.net/",
-            params={"type": "section", "q": "GAMES", "page": page},
-        )
-        return r.json['data']
+        for page in range(1, num_pages):
+            parameters = {"type": "section", "q": "GAMES", "page": page}
+            response = self.send_request(self.predb_api, parameters)
+            if response is None:
+                continue
+            elif response.json().get("results") == 0:
+                continue
 
-    releases = [
-        Pre(
-            dirname=rls["release"],
-            nfo_link="http://api.predb.net/nfoimg/{}.png".format(rls["release"]),
-            timestamp=datetime.fromtimestamp(float(rls["pretime"])),
-        )
-        for category in categories
-        for page in range(1, num_pages)
-        for rls in get_releases_in_category(category, page)
-    ]
+            response = response.json()
+            for rls in response.get("data"):
+                dirname = rls["release"]
+                nfo_link = "http://api.predb.net/nfoimg/{}.png".format(
+                    rls["release"])
+                timestamp = datetime.fromtimestamp(float(rls["pretime"]))
+                predb_releases.append(Pre(dirname, nfo_link, timestamp))
+                logger.info(f"Release: {dirname}, NFO Link: {nfo_link}")
 
-    # Logging the NFO link
-    for release in releases:
-        logger.info(f"Release: {release.dirname}, NFO Link: {release.nfo_link}")
+        return predb_releases
 
-    return releases
+    def get_pres(self) -> List[Pre]:
+        logger.info("Getting pres from predbs")
+
+        # PreDBs in order of preference
+        predbs = [self.get_xrel_scene, self.get_xrel_p2p, self.get_predbde]
+        pres = dict()
+
+        for get_func in reversed(predbs):
+            try:
+                releases = get_func()
+                # override duplicate dirnames in later iterations
+                pres.update((pre.dirname, pre) for pre in releases)
+            except (HTTPError, URLError) as e:
+                logger.error(e)
+                logger.warning("Connection to predb failed, skipping..")
+
+        if CONFIG.CONFIG["main"]["backup_nfos"].lower() == "yes":
+            logger.info("starting nfo download...")
+            for pre in pres.values():
+                self.download_nfo(pre.nfo_link, pre.dirname)
+
+        return list(pres.values())

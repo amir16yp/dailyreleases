@@ -3,15 +3,19 @@ from datetime import time, datetime, timedelta
 from time import sleep
 from discord_webhook import DiscordWebhook
 import prawcore
-from .stores import epic
+
+from .stores import StoreHandler
 from . import __version__, reddit
-from .config import CONFIG
-from .generation import generate
+from .Config import CONFIG
+from .Generator import Generator
+from .Cache import Cache
 
 logger = logging.getLogger(__name__)
+cache = Cache()
+cache.setup()
+generator = Generator(cache)
 
-
-debug_discord_webhook_url = CONFIG["discord"]["debug_webhook_url"]
+debug_discord_webhook_url = CONFIG.CONFIG["discord"]["debug_webhook_url"]
 
 class DiscordLogHandler(logging.Handler):
     def emit(self, record):
@@ -27,7 +31,7 @@ def listen_inbox() -> None:
         try:
             for message in reddit.praw.inbox.stream():
                 if message.author in authorized_users:
-                    generate(post=True, pm_recipients=(message.author.name,))
+                    generator.generate(post=True, pm_recipients=(message.author.name,))
                 else:
                     logger.info(
                         "Discarding PM from %s: not authorized user", message.author
@@ -42,6 +46,7 @@ def listen_inbox() -> None:
 
 
 def at_midnight() -> None:
+    storehandler = StoreHandler()
     while True:
         try:
             now = datetime.now()
@@ -49,9 +54,9 @@ def at_midnight() -> None:
             until_midnight = midnight - now
             logger.info(f"Waiting {until_midnight} until midnight..")
             sleep(until_midnight.total_seconds())
-            epic.load_offerid_json()
-            generate(
-                post=True, pm_recipients=CONFIG["reddit"]["notify_users"].split(",")
+            storehandler.epic.load_offerid_json()
+            generator.generate(
+                post=True, pm_recipients=CONFIG.CONFIG["reddit"]["notify_users"].split(",")
             )
         except Exception as e:
             logger.exception(e)
@@ -60,22 +65,21 @@ def at_midnight() -> None:
             break
 
 
-def main() -> None:
+def main():
     try:
         print(f"Starting Daily Releases Bot v{__version__}")
-        mode = CONFIG["main"]["mode"]
-        if CONFIG['discord']['enable_debughook'] == 'yes':
+        mode = CONFIG.CONFIG["main"]["mode"]
+        if CONFIG.CONFIG['discord']['enable_debughook'] == 'yes':
             logger.info("Enabling discord webhook debug log")
             logging.getLogger().addHandler(DiscordLogHandler())
         else:
             logger.info("Set enable_debughook to 'yes' if discord debug log is needed.")
         logger.info("Mode is %s", mode)
-
         if mode == "test":
-            generate(post=False)
+            generator.generate(post=False)
         if mode == "immediately":
-            generate(
-                post=True, pm_recipients=CONFIG["reddit"]["notify_users"].split(",")
+            generator.generate(
+                post=True, pm_recipients=CONFIG.CONFIG["reddit"]["notify_users"].split(",")
             )
         if mode == "midnight":
             at_midnight()
@@ -84,7 +88,3 @@ def main() -> None:
     except Exception as e:
         logger.exception(e)
         raise e
-
-
-if __name__ == "__main__":
-    main()
