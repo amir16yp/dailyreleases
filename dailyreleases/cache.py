@@ -21,7 +21,8 @@ class Cache:
         self.cache_time = timedelta(seconds=CONFIG.CONFIG["web"].getint("cache_time"))
 
     def load_processed(self) -> Set[str]:
-        processed = self.connection.execute("SELECT dirname FROM processed").fetchall()
+        processed = self.connection.execute("SELECT dirname FROM processed"
+                                            ).fetchall()
         # Decode dirnames to utf8 or comparsion will be a pain.
         dirnames = {row[0].decode("utf8") for row in processed}
         return dirnames
@@ -48,20 +49,26 @@ class Cache:
         )
         self.connection.execute(
             """
-            CREATE TABLE IF NOT EXISTS
-            processed (dirname TEXT PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS pres (
+                id INTEGER PRIMARY KEY,
+                dirname TEXT,
+                nfo_link TEXT,
+                timestamp INTEGER
+                );
             """
         )
         self.connection.commit()
 
-    def clean(self, older_than=timedelta(days=3)):
+    def clean(self, older_than_days=3):
+        cutoff_timestamp = (datetime.utcnow() - timedelta(
+            days=older_than_days)).timestamp()
         self.connection.execute(
             """
             DELETE FROM requests
             WHERE timestamp < :cutoff;
             """,
             {
-                "cutoff": (datetime.utcnow() - older_than).timestamp(),
+                "cutoff": cutoff_timestamp,
             },
         )
         self.connection.commit()
@@ -79,7 +86,7 @@ class Cache:
 
         if row is not None and datetime.fromtimestamp(row["timestamp"]) > \
                 datetime.utcnow() - self.cache_time:
-            logger.debug("Cache hit:", url)
+            logger.debug(f"Cache hit: {url}")
             return Response.from_row(row)
         else:
             return None
@@ -93,8 +100,24 @@ class Cache:
             {
                 "url": url,
                 "response": response.content,
-                "timestamp": datetime.utcnow().timestamp(),
+                "timestamp": timestamp,
             },
         )
         self.connection.commit()
         return
+
+    def insert_pre(self, pre):
+        self.connection.execute(
+            """
+            INSERT OR REPLACE INTO pres(dirname, nfo_link, timestamp)
+            VALUES (:url, :response, :timestamp);
+            """,
+            {
+                "dirname": pre.dirname,
+                "nfo_link": pre.nfo_link,
+                "timestamp": pre.timestamp,
+            },
+        )
+        self.connection.commit()
+        return
+        

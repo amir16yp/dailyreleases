@@ -33,7 +33,8 @@ class PREdbs(APIHelper):
                 nfo_filename = nfo_dir.joinpath(f"{dirname}{extension}")
                 with open(nfo_filename, "wb") as nfo_file:
                     nfo_file.write(r.bytes)
-                    logger.info(f"Downloaded NFO for {dirname} to {nfo_filename}")
+                    logger.info(f"Downloaded NFO for {dirname} to "
+                                f"{nfo_filename}")
             else:
                 logger.warning(f"Failed to download NFO for {dirname}. "
                                f"Status code: {r.status_code}")
@@ -65,7 +66,7 @@ class PREdbs(APIHelper):
                 for release_info in release_list:
                     dirname = release_info["dirname"]
                     nfo_link = release_info["link_href"]
-                    timestamp = datetime.fromtimestamp(release_info["time"])
+                    timestamp = release_info["time"] # TODO: make timetamp a unix timetamp
                     xrel_releases.append(Pre(dirname, nfo_link, timestamp))
                     logger.info(f"Release {dirname}, NFO: {nfo_link}")
 
@@ -90,7 +91,7 @@ class PREdbs(APIHelper):
         for release_info in release_list:
             dirname = release_info["dirname"]
             nfo_link = release_info["link_href"]
-            timestamp = datetime.fromtimestamp(release_info["pub_time"])
+            timestamp = release_info["pub_time"]
             xrel_releases.append(Pre(dirname, nfo_link, timestamp))
             logger.info(f"Release {dirname}, NFO: {nfo_link}")
 
@@ -114,7 +115,7 @@ class PREdbs(APIHelper):
                 dirname = rls["release"]
                 nfo_link = "http://api.predb.net/nfoimg/{}.png".format(
                     rls["release"])
-                timestamp = datetime.fromtimestamp(float(rls["pretime"]))
+                timestamp = rls["pretime"]
                 predb_releases.append(Pre(dirname, nfo_link, timestamp))
                 logger.info(f"Release: {dirname}, NFO Link: {nfo_link}")
 

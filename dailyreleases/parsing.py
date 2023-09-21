@@ -88,7 +88,9 @@ def parse_pre(pre: Pre, offline=False) -> Release:
     if re.search("|".join(BLACKLISTED), pre.dirname, flags=re.IGNORECASE):
         raise ParseError("Contains blacklisted word")
 
-    if pre.timestamp < datetime.utcnow() - timedelta(hours=48):
+    current_timestamp = int(datetime.utcnow().timestamp())
+    two_days_ago_timestamp = current_timestamp - (48 * 3600)
+    if pre.timestamp < two_days_ago_timestamp:
         raise ParseError("Older than 48 hours")
 
     logger.info("---")

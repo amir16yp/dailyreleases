@@ -22,54 +22,6 @@ class Generator:
         self.cache = Cache()
         self.cache.setup()
 
-    def build_row(self, release: Release):
-        # Bold row if Denuvo crack. We're checking this first so as to not actually insert 'DENUVO' as a highlight
-        highlights = [
-            h for h in release.highlights if h not in ("DENUVO",)
-        ]  # avoids modifying original release object
-        bold = highlights != release.highlights
-
-        # The rows in the table containing updates will use the full rls_name as the name, while tables
-        # containing game and DLC releases will show tags and highlights, as well as the stylized game_name.
-        if release.type == ReleaseType.UPDATE:
-            name = f"[{release.rls_name}]({release.nfo_link})"
-        else:
-            tags = " ({})".format(" ".join(release.tags)) if release.tags else ""
-            highlights = " **- {}**".format(", ".join(highlights)) if highlights else ""
-            name = "[{}{}]({}){}".format(
-                util.markdown_escape(release.game_name), tags, release.nfo_link, highlights
-            )
-
-        stores = ", ".join(
-            f"[{name}]({link})" for name, link in release.store_links.items()
-        )
-
-        if release.score == -1:
-            reviews = "-"
-        else:
-            num_reviews_humanized = util.humanize(
-                release.num_reviews, precision=1, prefix="dec", suffix=""
-            )
-            reviews = f"{release.score:.0%} ({num_reviews_humanized})"
-
-        row = (name, release.group, stores, reviews)
-        if bold:
-            row = tuple(
-                f"**{c.replace('**', '')}**" for c in row
-            )  # .replace ensures no nested bold, which is unsupported
-
-        return row
-
-    def get_popularity(self, release: Release):
-        """
-        - The popularity of a game is defined by the number of reviews it has
-        on Steam, however:
-        We rank RIPs lower than non-RIPs so the same game released as both will
-        sort the non-RIP first. Releases with highlights (e.g. PROPER/DENUVO)
-        are always ranked highest.
-        """
-        is_rip = "RIP" in [tag.upper() for tag in release.tags]
-        return len(release.highlights), release.num_reviews, not is_rip
 
     def generate_post(self, releases: Releases) -> str:
         post = []
@@ -88,14 +40,14 @@ class Generator:
                 group_order = defaultdict(lambda: (0, -1, False))
                 for release in type_releases:
                     group_order[release.group] = max(
-                        group_order[release.group], self.get_popularity(release)
+                        group_order[release.group], release.get_popularity()
                     )
 
                 def order(release: Release):
                     return (
                         group_order[release.group],
                         release.group,  # ensure grouping if two groups share group_order
-                        self.get_popularity(release),
+                        release.get_popularity(),
                     )
 
                 type_releases.sort(key=order, reverse=True)
@@ -103,7 +55,7 @@ class Generator:
                 post.append(f"| {type} | Group | Store | Score (Reviews) |")
                 post.append("|:-|:-|:-|:-|")
                 post.extend(
-                    "| {} | {} | {} | {} |".format(*self.build_row(rls)) for rls in type_releases
+                    "| {} | {} | {} | {} |".format(*rls.build_row()) for rls in type_releases
                 )
 
                 post.append("")
@@ -136,11 +88,12 @@ class Generator:
             "-------------------------------------------------------------------------------------------------"
         )
         start_time = time.time()
-        processed = self.cache.load_processed()
+        #processed = self.cache.load_processed()
         predbs = PREdbs()
         pres = predbs.get_pres()
 
-        releases = parsing.parse_pres(pre for pre in pres if pre.dirname not in processed)
+        #releases = parsing.parse_pres(pre for pre in pres if pre.dirname not in processed)
+        releases = parsing.parse_pres(pre for pre in pres if pre.is_today() is True)
 
         # The date of the post changes at midday instead of midnight to allow calling script after 00:00
         title = f"Daily Releases ({(datetime.utcnow() - timedelta(hours=12)).strftime('%B %d, %Y')})"
