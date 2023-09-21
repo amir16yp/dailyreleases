@@ -36,6 +36,7 @@ class Cache:
         self.connection.commit()
 
     def setup(self):
+        logger.debug("Setting up cache.")
         self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS

@@ -15,7 +15,6 @@ class APIHelper():
         pass
 
     def send_request(self, url: str, parameters: dict = None):
-        # Sends a get-request to the api_url with the parameters.
         try:
             response = requests.get(url, params=parameters)
             response.raise_for_status()

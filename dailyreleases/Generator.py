@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class Generator:
-    def __init__(self, cache: Cache):
-        self.cache = cache
+    def __init__(self):
+        self.cache = Cache()
+        self.cache.setup()
 
     def build_row(self, release: Release):
         # Bold row if Denuvo crack. We're checking this first so as to not actually insert 'DENUVO' as a highlight
