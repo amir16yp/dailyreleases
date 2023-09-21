@@ -8,20 +8,21 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from discord_webhook import DiscordWebhook
 
-from . import util, reddit, parsing
+from . import util, parsing
+from .RedditHandler import RedditHandler
 from .PREdbs import PREdbs
 from .Cache import Cache
 from .Config import CONFIG
-from .parsing import Releases, Release, ReleaseType
+from .parsing import Releases, Release
 
 logger = logging.getLogger(__name__)
 
 
 class Generator:
     def __init__(self):
+        self.reddit_handler = RedditHandler()
         self.cache = Cache()
         self.cache.setup()
-
 
     def generate_post(self, releases: Releases) -> str:
         post = []
@@ -88,16 +89,13 @@ class Generator:
             "-------------------------------------------------------------------------------------------------"
         )
         start_time = time.time()
-        #processed = self.cache.load_processed()
         predbs = PREdbs()
         pres = predbs.get_pres()
         todays_pres = [pre for pre in pres if pre.from_today() is True]
 
         for pre in todays_pres:
             self.cache.insert_pre(pre)
-        #self.cache.insert_pre(pre for pre in todays_pres)
 
-        #releases = parsing.parse_pres(pre for pre in pres if pre.dirname not in processed)
         releases = parsing.parse_pres(pre for pre in todays_pres)
 
         # The date of the post changes at midday instead of midnight to allow calling script after 00:00
@@ -121,8 +119,8 @@ class Generator:
                 logger.info("reddit is neither disabled nor enabled in config, assuming enabled")
             # Post to bot's own subreddit
             bot_subreddit = CONFIG.CONFIG["reddit"]["bot_subreddit"]
-            reddit_src_post = reddit.submit_post(f"{title} - Source", generated_post_src, bot_subreddit)
-            reddit_post = reddit.submit_post(title, generated_post, bot_subreddit)
+            reddit_src_post = self.reddit_handler.submit_post(f"{title} - Source", generated_post_src, bot_subreddit)
+            reddit_post = self.reddit_handler.submit_post(title, generated_post, bot_subreddit)
 
             # Manually approve posts since reddit seem to think posts with many links are spam
             reddit_src_post.mod.approve()
@@ -139,8 +137,7 @@ class Generator:
                     """
                 )
                 for recipient in pm_recipients:
-                    reddit.send_pm(recipient, title, msg)
-
+                    self.reddit_handler.send_pm(recipient, title, msg)
         self.cache.clean()
         logger.info("Execution took %s seconds", int(time.time() - start_time))
         logger.info(

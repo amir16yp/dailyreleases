@@ -13,9 +13,9 @@ class Pre:
     @classmethod
     def from_row(cls, row):
         pre = cls(
-            byte_data=row["dirname"],
-            status_code=row["nfo_link"],
-            content_type=row["timestamp"]
+            dirname=row["dirname"],
+            nfo_link=row["nfo_link"],
+            timestamp=row["timestamp"]
         )
         return pre
 
@@ -26,11 +26,3 @@ class Pre:
             return True
         else:
             return False
-
-
-"""
-class Pre(NamedTuple):
-    dirname: str
-    nfo_link: str
-    timestamp: datetime
-"""

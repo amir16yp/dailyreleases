@@ -5,7 +5,8 @@ from discord_webhook import DiscordWebhook
 import prawcore
 
 from .stores import StoreHandler
-from . import __version__, reddit
+from . import __version__
+from .RedditHandler import RedditHandler
 from .Config import CONFIG
 from .Generator import Generator
 
@@ -24,6 +25,7 @@ class DiscordLogHandler(logging.Handler):
 class Main:
     def __init__(self):
         self.generator = Generator()
+        self.reddit_hanlder = RedditHandler()
 
     def run_reply_mode(self):
         logger.info("Listening on reddit inbox stream")
@@ -31,7 +33,7 @@ class Main:
 
         while True:
             try:
-                for message in reddit.praw.inbox.stream():
+                for message in self.reddit_hanlder.praw_handler.inbox.stream():
                     if message.author in authorized_users:
                         self.generator.generate(
                             post=True,
