@@ -1,5 +1,6 @@
 """
-The main terminal-based entry point. Invoke as `dailyreleases' or `python3 -m dailyreleases'.
+The main terminal-based entry point. Invoke as `dailyreleases' or
+`python3 -m dailyreleases'.
 """
 
 from .main import Main

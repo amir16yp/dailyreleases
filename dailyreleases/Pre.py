@@ -1,6 +1,5 @@
 """Class representing a PRE"""
 
-# from typing import NamedTuple
 from datetime import datetime
 
 
