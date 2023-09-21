@@ -3,9 +3,12 @@
 import logging
 import sqlite3
 from datetime import timedelta, datetime
-from .Response import Response
-from .Config import CONFIG
 from typing import Set
+
+from .Response import Response
+from .Pre import Pre
+from .Config import CONFIG
+
 
 logger = logging.getLogger(__name__)
 
@@ -84,10 +87,25 @@ class Cache:
             {"url": url},
         ).fetchone()
 
-        if row is not None and datetime.fromtimestamp(row["timestamp"]) > \
-                datetime.utcnow() - self.cache_time:
+        if row is not None:
             logger.debug(f"Cache hit: {url}")
             return Response.from_row(row)
+        else:
+            return None
+
+    def get_pre_by_dirname(self, dirname: str) -> Pre:
+        row = self.connection.execute(
+            """
+            SELECT dirname, nfo_link, timestamp
+            FROM pres
+            WHERE dirname = :searched_dirname;
+            """,
+            {"dirname": dirname},
+        ).fetchone()
+
+        if row is not None:
+            logger.debug(f"Cache hit: {dirname}")
+            return Pre.from_row(row)
         else:
             return None
 
@@ -110,7 +128,7 @@ class Cache:
         self.connection.execute(
             """
             INSERT OR REPLACE INTO pres(dirname, nfo_link, timestamp)
-            VALUES (:url, :response, :timestamp);
+            VALUES (:dirname, :nfo_link, :timestamp);
             """,
             {
                 "dirname": pre.dirname,

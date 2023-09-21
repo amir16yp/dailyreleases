@@ -10,7 +10,16 @@ class Pre:
         self.nfo_link = nfo_link
         self.timestamp = timestamp
 
-    def is_today(self):
+    @classmethod
+    def from_row(cls, row):
+        pre = cls(
+            byte_data=row["dirname"],
+            status_code=row["nfo_link"],
+            content_type=row["timestamp"]
+        )
+        return pre
+
+    def from_today(self):
         timestamp_datetime = datetime.utcfromtimestamp(self.timestamp)
         today_date = datetime.now().date()
         if timestamp_datetime.date() == today_date:

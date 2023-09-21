@@ -91,16 +91,21 @@ class Generator:
         #processed = self.cache.load_processed()
         predbs = PREdbs()
         pres = predbs.get_pres()
+        todays_pres = [pre for pre in pres if pre.from_today() is True]
+
+        for pre in todays_pres:
+            self.cache.insert_pre(pre)
+        #self.cache.insert_pre(pre for pre in todays_pres)
 
         #releases = parsing.parse_pres(pre for pre in pres if pre.dirname not in processed)
-        releases = parsing.parse_pres(pre for pre in pres if pre.is_today() is True)
+        releases = parsing.parse_pres(pre for pre in todays_pres)
 
         # The date of the post changes at midday instead of midnight to allow calling script after 00:00
         title = f"Daily Releases ({(datetime.utcnow() - timedelta(hours=12)).strftime('%B %d, %Y')})"
 
         generated_post = self.generate_post(releases)
         generated_post_src = textwrap.indent(generated_post, "    ")
-        self.cache.save_processed({p.dirname for p in pres})
+        #self.cache.save_processed({p.dirname for p in pres})
 
         if post:
             # post to discord
@@ -124,7 +129,7 @@ class Generator:
             reddit_post.mod.approve()
 
             # We only need to save the latest pres since older ones will never show up again
-            self.cache.save_processed(p.dirname for p in pres)
+            #self.cache.save_processed(p.dirname for p in pres)
 
             if pm_recipients is not None:
                 msg = inspect.cleandoc(
