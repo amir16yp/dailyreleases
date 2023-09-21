@@ -1,7 +1,6 @@
 """This class is used to query different PREdb APIs"""
 
 import logging
-from datetime import datetime
 from typing import List
 from urllib.error import HTTPError, URLError
 import mimetypes
@@ -66,7 +65,7 @@ class PREdbs(APIHelper):
                 for release_info in release_list:
                     dirname = release_info["dirname"]
                     nfo_link = release_info["link_href"]
-                    timestamp = release_info["time"] # TODO: make timetamp a unix timetamp
+                    timestamp = release_info["time"]
                     xrel_releases.append(Pre(dirname, nfo_link, timestamp))
                     logger.info(f"Release {dirname}, NFO: {nfo_link}")
 

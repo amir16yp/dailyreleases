@@ -3,7 +3,6 @@
 import logging
 import sqlite3
 from datetime import timedelta, datetime
-from typing import Set
 
 from .Response import Response
 from .Pre import Pre
@@ -21,23 +20,8 @@ class Cache:
         # do not try to decode bytes as utf-8 strings
         connection.text_factory = bytes
         self.connection = connection
-        self.cache_time = timedelta(seconds=CONFIG.CONFIG["web"].getint("cache_time"))
-
-    def load_processed(self) -> Set[str]:
-        processed = self.connection.execute("SELECT dirname FROM processed"
-                                            ).fetchall()
-        # Decode dirnames to utf8 or comparsion will be a pain.
-        dirnames = {row[0].decode("utf8") for row in processed}
-        return dirnames
-
-    def save_processed(self, processed: Set[str]) -> None:
-        for dirname in processed:
-            self.connection.execute("""
-                                    INSERT OR REPLACE INTO processed (dirname)
-                                    VALUES (?);
-                                    """, (dirname,)
-                                    )
-        self.connection.commit()
+        self.cache_time = timedelta(seconds=CONFIG.CONFIG["web"].getint(
+            "cache_time"))
 
     def setup(self):
         logger.debug("Setting up cache.")
@@ -52,12 +36,11 @@ class Cache:
         )
         self.connection.execute(
             """
-            CREATE TABLE IF NOT EXISTS pres (
-                id INTEGER PRIMARY KEY,
-                dirname TEXT,
-                nfo_link TEXT,
-                timestamp INTEGER
-                );
+            CREATE TABLE IF NOT EXISTS
+            pres (id INTEGER PRIMARY KEY,
+                  dirname TEXT,
+                  nfo_link TEXT,
+                  timestamp INTEGER);
             """
         )
         self.connection.commit()
@@ -109,7 +92,7 @@ class Cache:
         else:
             return None
 
-    def insert_response(self, url: str, response: Response, timestamp):
+    def insert_response(self, url: str, response: Response, timestamp: int):
         self.connection.execute(
             """
             INSERT OR REPLACE INTO requests(url, response, timestamp)
@@ -124,7 +107,7 @@ class Cache:
         self.connection.commit()
         return
 
-    def insert_pre(self, pre):
+    def insert_pre(self, pre: Pre):
         self.connection.execute(
             """
             INSERT OR REPLACE INTO pres(dirname, nfo_link, timestamp)
@@ -138,4 +121,3 @@ class Cache:
         )
         self.connection.commit()
         return
-        
