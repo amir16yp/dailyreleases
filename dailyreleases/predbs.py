@@ -40,34 +40,33 @@ class PREdbs(APIHelper):
         except (HTTPError, URLError) as e:
             logger.warning(f"Failed to download NFO for {dirname}: {e}")
 
-    def get_xrel_scene(self, categories=("CRACKED", "UPDATE"),
-                       num_pages=2) -> List[Pre]:
+    def get_xrel_scene(self, categories=("CRACKED", "UPDATE")) -> List[Pre]:
         logger.debug("Getting PREs from xrel.to")
 
         xrel_releases = []
 
         for category in categories:
-            for page in range(1, num_pages):
-                parameters = {
-                    "category_name": category,
-                    "ext_info_type": "game",
-                    "per_page": 100,
-                    "page": page,
-                    }
-                release_list = self.send_request(self.xrel_scene_api,
-                                                 parameters)
-                if release_list is not None:
-                    release_list = release_list.json().get("list")
-                else:
-                    logger.error("Release list could not be retrieved.")
-                    continue
+            parameters = {
+                "category_name": category,
+                "ext_info_type": "game",
+                "per_page": 100,
+                "page": 1,
+                }
+            release_list = self.send_request(self.xrel_scene_api,
+                                             parameters)
+            if release_list is not None:
+                release_list = release_list.json().get("list")
+            else:
+                logger.error("Release list could not be retrieved.")
+                continue
 
-                for release_info in release_list:
-                    dirname = release_info["dirname"]
-                    nfo_link = release_info["link_href"]
-                    timestamp = release_info["time"]
-                    xrel_releases.append(Pre(dirname, nfo_link, timestamp))
-                    logger.info(f"Release {dirname}, NFO: {nfo_link}")
+            for release_info in release_list:
+                dirname = release_info["dirname"]
+                nfo_link = release_info["link_href"]
+                group = release_info["group_name"]
+                timestamp = release_info["time"]
+                xrel_releases.append(Pre(dirname, nfo_link, group, timestamp))
+                logger.info(f"Release {dirname}, NFO: {nfo_link}")
 
         return xrel_releases
 
@@ -90,33 +89,34 @@ class PREdbs(APIHelper):
         for release_info in release_list:
             dirname = release_info["dirname"]
             nfo_link = release_info["link_href"]
+            group = release_info["group"]["name"]
             timestamp = release_info["pub_time"]
-            xrel_releases.append(Pre(dirname, nfo_link, timestamp))
+            xrel_releases.append(Pre(dirname, nfo_link, group, timestamp))
             logger.info(f"Release {dirname}, NFO: {nfo_link}")
 
         return xrel_releases
 
-    def get_predbde(self, num_pages=5) -> List[Pre]:
+    def get_predbde(self) -> List[Pre]:
         logger.debug("Getting pres from predb.net")
+        # Today and yesterday in case any were missed.
+        built_api = f"{self.predb_api}type=games&date=today&date=yesterday"
 
         predb_releases = []
 
-        for page in range(1, num_pages):
-            parameters = {"type": "section", "q": "GAMES", "page": page}
-            response = self.send_request(self.predb_api, parameters)
-            if response is None:
-                continue
-            elif response.json().get("results") == 0:
-                continue
+        response = self.send_request(built_api)
+        if response is None:
+            return predb_releases
+        elif response.json().get("results") == 0:
+            return predb_releases
 
-            response = response.json()
-            for rls in response.get("data"):
-                dirname = rls["release"]
-                nfo_link = "http://api.predb.net/nfoimg/{}.png".format(
-                    rls["release"])
-                timestamp = rls["pretime"]
-                predb_releases.append(Pre(dirname, nfo_link, timestamp))
-                logger.info(f"Release: {dirname}, NFO Link: {nfo_link}")
+        response = response.json()
+        for rls in response.get("data"):
+            dirname = rls["release"]
+            nfo_link = "http://api.predb.net/nfoimg/{}.png".format(rls["release"])
+            group = rls["group"]
+            timestamp = rls["pretime"]
+            predb_releases.append(Pre(dirname, nfo_link, group, timestamp))
+            logger.info(f"Release: {dirname}, NFO Link: {nfo_link}")
 
         return predb_releases
 

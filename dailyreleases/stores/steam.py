@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 
 from .. import util
 from ..APIHelper import APIHelper
-from .Release import Release
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +90,7 @@ class Steam(APIHelper):
             return None
 
 
-    def update_info(self, release: Release) -> Release:
+    def update_info(self, release):
         logger.debug("Getting information about game using Steam API")
         link = release.store_links["Steam"]
         link_type, appid = re.search("(app|sub|bundle)(?:/)([0-9]+)", link).groups()

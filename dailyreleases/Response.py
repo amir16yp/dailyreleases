@@ -9,7 +9,6 @@ class Response:
         self.byte_data = byte_data
         self.status_code = status_code
         self.content_type = content_type
-        # self.text = self.bytes.decode()  # TODO: Detect encoding
 
     @classmethod
     def from_row(cls, row):

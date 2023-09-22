@@ -152,18 +152,7 @@ def parse_pre(pre: Pre, offline=False) -> Release:
     logger.info("Offline: %s %s : %s - %s", platform, rls_type, game_name, group)
     logger.info("Tags: %s. Highlights: %s", tags, highlights)
 
-    release = Release(
-        dirname=pre.dirname,
-        nfo_link=pre.nfo_link,
-        timestamp=pre.timestamp,
-        rls_name=rls_name,
-        group=group,
-        game_name=game_name,
-        type=rls_type,
-        platform=platform,
-        tags=tags,
-        highlights=highlights,
-    )
+    release = Release.from_Pre(pre)
 
     if offline:
         return release

@@ -39,6 +39,7 @@ class Cache:
             pres (id INTEGER PRIMARY KEY,
                   dirname TEXT,
                   nfo_link TEXT,
+                  group_name TEXT,
                   timestamp INTEGER);
             """
         )
@@ -79,7 +80,7 @@ class Cache:
     def get_pre_by_dirname(self, dirname: str) -> Pre:
         row = self.connection.execute(
             """
-            SELECT dirname, nfo_link, timestamp
+            SELECT dirname, nfo_link, group_name, timestamp
             FROM pres
             WHERE dirname = :dirname;
             """,
@@ -110,12 +111,13 @@ class Cache:
     def insert_pre(self, pre: Pre):
         self.connection.execute(
             """
-            INSERT OR REPLACE INTO pres(dirname, nfo_link, timestamp)
-            VALUES (:dirname, :nfo_link, :timestamp);
+            INSERT OR REPLACE INTO pres(dirname, nfo_link, group_name, timestamp)
+            VALUES (:dirname, :nfo_link, :group_name, :timestamp);
             """,
             {
                 "dirname": pre.dirname,
                 "nfo_link": pre.nfo_link,
+                "group_name": pre.group_name,
                 "timestamp": pre.timestamp,
             },
         )

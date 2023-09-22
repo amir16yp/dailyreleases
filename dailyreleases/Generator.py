@@ -91,7 +91,8 @@ class Generator:
         start_time = time.time()
         predbs = PREdbs()
         pres = predbs.get_pres()
-        todays_pres = [pre for pre in pres if pre.from_today() is True]
+        todays_pres = [pre for pre in pres if pre.from_today() is True or
+                       self.cache.get_pre_by_dirname(pre.dirname) is None]
 
         for pre in todays_pres:
             self.cache.insert_pre(pre)
