@@ -144,11 +144,11 @@ class Pre:
     def to_reddit_row(self):
         stores = []
         if self.steam_link is not None:
-            stores.append("[Steam](self.steam_link)")
+            stores.append(f"[Steam]({self.steam_link})")
         if self.gog_link is not None:
-            stores.append("[GOG](self.gog_link)")
+            stores.append(f"[GOG]({self.gog_link})")
         if self.epic_link is not None:
-            stores.append("[Epic](self.epic_link)")
+            stores.append(f"[Epic]({self.epic_link})")
 
         stores_formatted = ", ".join(stores)
 
