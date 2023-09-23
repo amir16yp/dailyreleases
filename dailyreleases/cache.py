@@ -4,7 +4,6 @@ import logging
 import sqlite3
 from datetime import timedelta, datetime
 
-from .Response import Response
 from .Pre import Pre
 from .Config import CONFIG
 
@@ -20,19 +19,10 @@ class Cache:
         self.connection = connection
         self.cache_time = timedelta(seconds=CONFIG.CONFIG["web"].getint(
             "cache_time"))
+        self.setup()
 
     def setup(self):
         logger.debug("Setting up cache.")
-        # TODO: table requests obsolete?
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS
-            requests (id INTEGER PRIMARY KEY,
-                      url TEXT UNIQUE NOT NULL,
-                      response BLOB NOT NULL,
-                      timestamp INTEGER NOT NULL);
-            """
-        )
         self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS
@@ -45,7 +35,7 @@ class Cache:
         )
         self.connection.commit()
 
-    def clean(self, older_than_days=3):
+    def clean(self, older_than_days=7):
         # Removes PREs from Cache that are older than specified days
         cutoff_timestamp = (datetime.utcnow() - timedelta(
             days=older_than_days)).timestamp()
@@ -60,22 +50,6 @@ class Cache:
         )
         self.connection.commit()
         self.connection.executescript("VACUUM;")
-
-    def get_response_by_url(self, url: str) -> Response:
-        row = self.connection.execute(
-            """
-            SELECT response, timestamp
-            FROM requests
-            WHERE url = :url;
-            """,
-            {"url": url},
-        ).fetchone()
-
-        if row is not None:
-            logger.debug(f"Cache hit: {url}")
-            return Response.from_row(row)
-        else:
-            return None
 
     def get_pre_by_dirname(self, dirname: str) -> Pre:
         row = self.connection.execute(
@@ -92,21 +66,6 @@ class Cache:
             return Pre.from_row(row)
         else:
             return None
-
-    def insert_response(self, url: str, response: Response, timestamp: int):
-        self.connection.execute(
-            """
-            INSERT OR REPLACE INTO requests(url, response, timestamp)
-            VALUES (:url, :response, :timestamp);
-            """,
-            {
-                "url": url,
-                "response": response.content,
-                "timestamp": timestamp,
-            },
-        )
-        self.connection.commit()
-        return
 
     def insert_pre(self, pre: Pre):
         self.connection.execute(

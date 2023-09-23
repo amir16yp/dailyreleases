@@ -8,31 +8,6 @@ from typing import Sequence, List
 logger = logging.getLogger(__name__)
 
 
-def humanize(n: int, precision=2, prefix="bin", suffix="B") -> str:
-    """
-    Return a humanized string representation of a number (of bytes).
-    Adapted from Doug Latornell - http://code.activestate.com/recipes/577081/
-    """
-    abbrevs = {
-        "dec": [
-            (1000 ** 5, "P" + suffix),
-            (1000 ** 4, "T" + suffix),
-            (1000 ** 3, "G" + suffix),
-            (1000 ** 2, "M" + suffix),
-            (1000 ** 1, "k" + suffix),
-        ],
-        "bin": [
-            (1 << 50, "Pi" + suffix),
-            (1 << 40, "Ti" + suffix),
-            (1 << 30, "Gi" + suffix),
-            (1 << 20, "Mi" + suffix),
-            (1 << 10, "ki" + suffix),
-        ],
-    }
-    factor, suffix = next(((f, s) for f, s in abbrevs[prefix] if n >= f), (1, suffix))
-    return "{1:.{0}f}".format(precision, n / factor).rstrip("0").rstrip(".") + suffix
-
-
 def case_insensitive_close_matches(word: str, possibilities: Sequence[str],
                                    n=3, cutoff=0.6) -> List[str]:
     """

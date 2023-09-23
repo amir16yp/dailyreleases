@@ -36,7 +36,7 @@ class Main:
                 for message in self.reddit_hanlder.praw_handler.inbox.stream():
                     if message.author in authorized_users:
                         self.generator.generate(
-                            post=True,
+                            discord_post=True,
                             pm_recipients=(message.author.name,))
                     else:
                         logger.info(
@@ -62,7 +62,7 @@ class Main:
                 sleep(until_midnight.total_seconds())
                 storehandler.epic.load_offerid_json()
                 self.generator.generate(
-                    post=True,
+                    discord_post=True,
                     pm_recipients=CONFIG.CONFIG["reddit"]
                     ["notify_users"].split(",")
                 )
@@ -74,12 +74,12 @@ class Main:
 
     def run_immediate_mode(self):
         self.generator.generate(
-            post=True,
+            discord_post=True,
             pm_recipients=CONFIG.CONFIG["reddit"]["notify_users"].split(",")
             )
 
     def run_test_mode(self):
-        self.generator.generate(post=False)
+        self.generator.generate(discord_post=False)
 
     def run_main(self):
         try:

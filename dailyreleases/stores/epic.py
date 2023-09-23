@@ -11,6 +11,7 @@ from ..Config import CONFIG
 logger = logging.getLogger(__name__)
 api = EpicGamesStoreAPI()
 
+
 class Epic():
     def __init__(self):
         self.epic_api_url = "https://store.epicgames.com/en-US/p/"

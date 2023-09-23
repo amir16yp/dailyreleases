@@ -23,4 +23,4 @@ class RedditHandler:
             'title:"daily releases"', sort="new", syntax="lucene",
             time_filter="week")
         return next(p for p in posts if re.search(
-            "daily release.*[(].* \d\d\d\d[)]", p.title, flags=re.IGNORECASE))
+            r"daily release.*[(].* \d\d\d\d[)]", p.title, flags=re.IGNORECASE))

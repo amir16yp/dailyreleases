@@ -4,16 +4,18 @@ import inspect
 import logging
 import textwrap
 import time
-from collections import defaultdict
+import re
+from typing import List
 from datetime import datetime, timedelta
 from discord_webhook import DiscordWebhook
 
-from . import util, parsing
+from . import util
 from .RedditHandler import RedditHandler
 from .PREdbs import PREdbs
 from .Cache import Cache
+from .Pre import Pre
 from .Config import CONFIG
-from .parsing import Releases, Release
+from .stores.StoreHandler import StoreHandler
 
 logger = logging.getLogger(__name__)
 
@@ -21,49 +23,51 @@ logger = logging.getLogger(__name__)
 class Generator:
     def __init__(self):
         self.reddit_handler = RedditHandler()
+        self.store_handler = StoreHandler()
+        self.predb_handler = PREdbs()
         self.cache = Cache()
-        self.cache.setup()
 
-    def generate_post(self, releases: Releases) -> str:
+    def generate_post(self, pres: List[Pre]) -> str:
         post = []
-        for platform, platform_releases in releases.items():
-            # Skip if platform doesn't contain any releases in any of the three release type categories
-            if sum(len(pr) for pr in platform_releases.values()) == 0:
-                continue
+        update_releases = []
+        dlc_releases = []
+        game_releases = []
 
-            post.append(f"# {platform}")
-            for type, type_releases in platform_releases.items():
-                if not type_releases:
-                    continue
+        for pre in pres:
+            if pre.release_type == "update":
+                update_releases.append(pre)
+            elif pre.release_type == "dlc":
+                dlc_releases.append(pre)
+            elif pre.release_type == "game":
+                game_releases.append(pre)
 
-                # Releases in the tables are grouped by release group, and the groups are ordered according to the most
-                # popular game within the group. Games are sorted by popularity internally in the groups as well.
-                group_order = defaultdict(lambda: (0, -1, False))
-                for release in type_releases:
-                    group_order[release.group] = max(
-                        group_order[release.group], release.get_popularity()
-                    )
+        game_releases = sorted(game_releases, key=lambda pre: pre.group_name)
+        update_releases = sorted(update_releases, key=lambda pre: pre.group_name)
+        dlc_releases = sorted(dlc_releases, key=lambda pre: pre.group_name)
 
-                def order(release: Release):
-                    return (
-                        group_order[release.group],
-                        release.group,  # ensure grouping if two groups share group_order
-                        release.get_popularity(),
-                    )
-
-                type_releases.sort(key=order, reverse=True)
-
-                post.append(f"| {type} | Group | Store | Score (Reviews) |")
-                post.append("|:-|:-|:-|:-|")
-                post.extend(
-                    "| {} | {} | {} | {} |".format(*rls.build_row()) for rls in type_releases
-                )
-
-                post.append("")
-                post.append("&nbsp;")
-                post.append("")
-
+        if game_releases:
+            post.append("| Game | Group | Stores | Review |")
+            post.append("| :---- | :---- | :---- | :---- |")
+            for pre in game_releases:
+                post.append(pre.to_reddit_row())
             post.append("")
+            post.append("&nbsp;")
+            post.append("")
+        if update_releases:
+            post.append("| Update | Group | Stores | Reviews |")
+            post.append("| :---- | :---- | :---- | :---- |")
+            for pre in update_releases:
+                post.append(pre.to_reddit_row())
+            post.append("")
+            post.append("&nbsp;")
+            post.append("")
+        if dlc_releases:
+            post.append("| DLC | Group | Stores | Reviews |")
+            post.append("| :---- | :---- | :---- | :---- |")
+            for pre in dlc_releases:
+                post.append(pre.to_reddit_row())
+            post.append("")
+            post.append("&nbsp;")
             post.append("")
 
         if not post:
@@ -72,6 +76,8 @@ class Generator:
 
         # Add epilogue
         try:
+            post.append("")
+            post.append("")
             with CONFIG.DATA_DIR.joinpath("epilogue.txt").open() as file:
                 post.extend(line.rstrip() for line in file.readlines())
         except FileNotFoundError:
@@ -84,29 +90,47 @@ class Generator:
         return post_str
 
     @util.retry(attempts=int(CONFIG.CONFIG['main']['retry']), delay=120)
-    def generate(self, post=False, pm_recipients=None) -> None:
+    def generate(self, discord_post=False, pm_recipients=None) -> None:
         logger.info(
             "-------------------------------------------------------------------------------------------------"
         )
         start_time = time.time()
-        predbs = PREdbs()
-        pres = predbs.get_pres()
-        todays_pres = [pre for pre in pres if pre.from_today() is True or
-                       self.cache.get_pre_by_dirname(pre.dirname) is None]
 
-        for pre in todays_pres:
+        pres = self.predb_handler.get_pres()
+        relevant_pres = []
+        
+        for pre in pres:
+            if pre.from_today() is True:
+                relevant_pres.append(pre)
+            elif pre.from_yesterday() is True and self.cache.get_pre_by_dirname(pre.dirname) is None:
+                # This branch checks if a pre was missed the day before
+                relevant_pres.append(pre)
+            else:
+                continue
+
+        for pre in relevant_pres:
             self.cache.insert_pre(pre)
+            pre.steam_link = self.store_handler.steam.search(pre.game_name)
+            pre.gog_link = self.store_handler.gog.search(pre.game_name)
+            pre.epic_link = self.store_handler.epic.search(pre.game_name)
 
-        releases = parsing.parse_pres(pre for pre in todays_pres)
-
+            if pre.steam_link is not None:
+                match = re.search(r"/(\d+)/?$", pre.steam_link)
+                appid = match.group(1)
+                bundled_reviews = self.store_handler.steam.get_appreviews(appid)
+                if bundled_reviews is not None:
+                    positive_reviews, total_reviews = bundled_reviews
+                    pre.positive_reviews = positive_reviews
+                    pre.total_reviews = total_reviews
+                
+            
         # The date of the post changes at midday instead of midnight to allow calling script after 00:00
         title = f"Daily Releases ({(datetime.utcnow() - timedelta(hours=12)).strftime('%B %d, %Y')})"
 
-        generated_post = self.generate_post(releases)
+        generated_post = self.generate_post(relevant_pres)
         generated_post_src = textwrap.indent(generated_post, "    ")
-        #self.cache.save_processed({p.dirname for p in pres})
 
-        if post:
+        if discord_post:
             # post to discord
             webhook_url = CONFIG.CONFIG["discord"]["webhook_url"]
             webhook = DiscordWebhook(url=webhook_url, content=title)
@@ -117,18 +141,20 @@ class Generator:
             elif CONFIG.CONFIG["reddit"]["enable"] == "yes":
                 pass
             else:
-                logger.info("reddit is neither disabled nor enabled in config, assuming enabled")
+                logger.info("reddit is neither disabled nor enabled in config "
+                            ", assuming enabled")
             # Post to bot's own subreddit
             bot_subreddit = CONFIG.CONFIG["reddit"]["bot_subreddit"]
-            reddit_src_post = self.reddit_handler.submit_post(f"{title} - Source", generated_post_src, bot_subreddit)
-            reddit_post = self.reddit_handler.submit_post(title, generated_post, bot_subreddit)
+            reddit_src_post = self.reddit_handler.submit_post(f"{title} - Source",
+                                                              generated_post_src,
+                                                              bot_subreddit)
+            reddit_post = self.reddit_handler.submit_post(title,
+                                                          generated_post,
+                                                          bot_subreddit)
 
             # Manually approve posts since reddit seem to think posts with many links are spam
             reddit_src_post.mod.approve()
             reddit_post.mod.approve()
-
-            # We only need to save the latest pres since older ones will never show up again
-            #self.cache.save_processed(p.dirname for p in pres)
 
             if pm_recipients is not None:
                 msg = inspect.cleandoc(
