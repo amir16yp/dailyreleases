@@ -22,7 +22,7 @@ class Epic():
         egs_offerid_url = CONFIG.CONFIG['main']['egs_offeridapi_url']
         logger.debug("Loading EGS offerid defintions from " + egs_offerid_url)
         offerid_txt = requests.get(egs_offerid_url).content.decode()
-        offerid_json = loads(offerid_txt)
+        self.offerid_json = loads(offerid_txt)
 
     @retry()
     def get_epic_games_data(self, query: str):
