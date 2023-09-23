@@ -99,7 +99,7 @@ class PREdbs(APIHelper):
     def get_predbde(self) -> List[Pre]:
         logger.debug("Getting pres from predb.net")
         # Today and yesterday in case any were missed.
-        built_api = f"{self.predb_api}?type=games&date=today&date=yesterday"
+        built_api = f"{self.predb_api}?section=GAMES&date=today&date=yesterday"
 
         predb_releases = []
 
