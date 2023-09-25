@@ -4,7 +4,7 @@ from time import sleep
 from discord_webhook import DiscordWebhook
 import prawcore
 
-from .stores import StoreHandler
+from .stores.StoreHandler import StoreHandler
 from . import __version__
 from .RedditHandler import RedditHandler
 from .Config import CONFIG
