@@ -1,9 +1,10 @@
 """
-The main terminal-based entry point. Invoke as `dailyreleases' or `python3 -m dailyreleases'.
+The main terminal-based entry point. Invoke as `dailyreleases' or
+`python3 -m dailyreleases'.
 """
 
+from .main import Main
+
 if __name__ == "__main__":
-    from .main import main
-#    from .stores import epic
-    main()
-    #epic.search("Gravity Circuit")
+
+    Main().run_main()
