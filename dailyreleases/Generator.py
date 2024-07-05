@@ -34,6 +34,9 @@ class Generator:
         # Set to track lines that have been seen
         seen_lines = set()
 
+        # Define exception lines that should be ignored
+        exception_lines = ['| :---- | :---- | :---- | :---- |', '&nbsp;', '']
+
         # List to hold non-duplicate lines
         result_lines = []
 
@@ -44,6 +47,11 @@ class Generator:
         for line in lines:
             # Strip leading and trailing whitespace
             stripped_line = line.strip()
+
+            # Check if the stripped line is in exception_lines
+            if stripped_line in exception_lines:
+                result_lines.append(line)
+                continue # Skip this line and move to the next iteration
 
             # Check if the stripped line has been seen before
             if stripped_line in seen_lines:
