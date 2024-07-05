@@ -27,6 +27,34 @@ class Generator:
         self.predb_handler = PREdbs()
         self.cache = Cache()
 
+    def remove_duplicate_lines(self, input_string):
+        # Split the input string into lines
+        lines = input_string.splitlines()
+
+        # Set to track lines that have been seen
+        seen_lines = set()
+
+        # List to hold non-duplicate lines
+        result_lines = []
+
+        # Count of total duplicate lines removed
+        total_duplicates_removed = 0
+
+        # Iterate through each line in the input string
+        for line in lines:
+            # Strip leading and trailing whitespace
+            stripped_line = line.strip()
+
+            # Check if the stripped line has been seen before
+            if stripped_line in seen_lines:
+                total_duplicates_removed += 1  # Increment total duplicates removed count
+            else:
+                seen_lines.add(stripped_line)  # Add stripped line to seen_lines
+                result_lines.append(line)  # Add non-stripped line to result_lines
+
+        logger.debug(f"Removed {total_duplicates_removed} duplicate lines")
+        return '\n'.join(result_lines)
+
     def generate_post(self, pres: List[Pre]) -> str:
         post = []
         update_releases = []
@@ -85,6 +113,7 @@ class Generator:
 
         # Convert post list to string
         post_str = "\n".join(post)
+        post_str = self.remove_duplicate_lines(post_str)
 
         logger.debug("Generated post:\n%s", post_str)
         return post_str
