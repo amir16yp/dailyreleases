@@ -87,9 +87,12 @@ class PREdbs(APIHelper):
             return xrel_releases
 
         for release_info in release_list:
+            # pprint(release_info)
             dirname = release_info["dirname"]
             nfo_link = release_info["link_href"]
-            group = release_info["group"]["name"]
+            if "group" in release_info.keys():
+                if "name" in release_info['group'].keys():
+                    group = release_info["group"]["name"]
             timestamp = release_info["pub_time"]
             xrel_releases.append(Pre(dirname, nfo_link, group, timestamp))
             logger.info(f"Release {dirname}, NFO: {nfo_link}")
