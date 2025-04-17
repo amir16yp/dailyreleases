@@ -15,7 +15,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -40,17 +40,16 @@ jobs:
         path: dist/daily-releases
         if-no-files-found: error
     
-    - name: Upload to Release
-      if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v1
+    - name: Release
+      if: github.ref_type == 'tag'
+      uses: softprops/action-gh-release@v2
       with:
         files: dist/daily-releases
-        tag_name: ${{ github.event.release.tag_name }}
   
   build-windows:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -74,6 +73,11 @@ jobs:
         path: dist/daily-releases.exe
         if-no-files-found: error
     
+    - name: Release
+      if: github.ref_type == 'tag'
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/daily-releases.exe 
     - name: Upload to Release
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v1
