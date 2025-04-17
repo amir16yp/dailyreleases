@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from discord_webhook import DiscordWebhook
 
 from . import util
-from .RedditHandler import RedditHandler
 from .PREdbs import PREdbs
 from .Cache import Cache
 from .Pre import Pre
@@ -22,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 class Generator:
     def __init__(self):
-        self.reddit_handler = RedditHandler()
         self.store_handler = StoreHandler()
         self.predb_handler = PREdbs()
         self.cache = Cache()

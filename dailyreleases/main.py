@@ -2,11 +2,9 @@ import logging
 from datetime import time, datetime, timedelta
 from time import sleep
 from discord_webhook import DiscordWebhook
-import prawcore
 
 from .stores.StoreHandler import StoreHandler
 from . import __version__
-from .RedditHandler import RedditHandler
 from .Config import CONFIG
 from .Generator import Generator
 
@@ -25,32 +23,7 @@ class DiscordLogHandler(logging.Handler):
 class Main:
     def __init__(self):
         self.generator = Generator()
-        self.reddit_hanlder = RedditHandler()
-
-    def run_reply_mode(self):
-        logger.info("Listening on reddit inbox stream")
-        authorized_users = CONFIG["reddit"]["authorized_users"].split(",")
-
-        while True:
-            try:
-                for message in self.reddit_hanlder.praw_handler.inbox.stream():
-                    if message.author in authorized_users:
-                        self.generator.generate(
-                            discord_post=True,
-                            pm_recipients=(message.author.name,))
-                    else:
-                        logger.info(
-                            "Discarding PM from %s: not authorized user",
-                            message.author)
-                    # mark message read last so we can retry after fatal errors
-                    message.mark_read()
-            except prawcore.PrawcoreException as e:
-                logger.warning("PrawcoreException: %s", e)
-                logger.info("Restarting inbox listener..")
-            except KeyboardInterrupt:
-                print("Exiting (KeyboardInterrupt)")
-                break
-
+        
     def run_midnight_mode(self):
         storehandler = StoreHandler()
         while True:
@@ -98,8 +71,6 @@ class Main:
                 self.run_immediate_mode()
             if mode == "midnight":
                 self.run_midnight_mode()
-            if mode == "reply":
-                self.run_reply_mode()
         except Exception as e:
             logger.exception(e)
             raise e
