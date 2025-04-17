@@ -8,6 +8,4 @@ idna==3.10
 requests==2.32.3
 soupsieve==2.6
 typing_extensions==4.13.2
-update-checker==0.18.0
 urllib3==2.4.0
-websocket-client==1.8.0
