@@ -171,35 +171,7 @@ class Generator:
             webhook = DiscordWebhook(url=webhook_url, content=title)
             webhook.add_file(generated_post.encode(), filename=title + '.txt')
             webhook.execute()
-            if CONFIG.CONFIG["reddit"]["enable"] == "no":
-                return
-            elif CONFIG.CONFIG["reddit"]["enable"] == "yes":
-                pass
-            else:
-                logger.info("reddit is neither disabled nor enabled in config "
-                            ", assuming enabled")
-            # Post to bot's own subreddit
-            bot_subreddit = CONFIG.CONFIG["reddit"]["bot_subreddit"]
-            reddit_src_post = self.reddit_handler.submit_post(f"{title} - Source",
-                                                              generated_post_src,
-                                                              bot_subreddit)
-            reddit_post = self.reddit_handler.submit_post(title,
-                                                          generated_post,
-                                                          bot_subreddit)
 
-            # Manually approve posts since reddit seem to think posts with many links are spam
-            reddit_src_post.mod.approve()
-            reddit_post.mod.approve()
-
-            if pm_recipients is not None:
-                msg = inspect.cleandoc(
-                    f"""
-                    [Preview]({reddit_post.url})  
-                    [Source]({reddit_src_post.url})  
-                    """
-                )
-                for recipient in pm_recipients:
-                    self.reddit_handler.send_pm(recipient, title, msg)
         self.cache.clean()
         logger.info("Execution took %s seconds", int(time.time() - start_time))
         logger.info(
