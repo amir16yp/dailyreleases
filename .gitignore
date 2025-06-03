@@ -1,3 +1,8 @@
 dailyreleases/__pycache__
 dailyreleases/stores/__pycache__
 tests/__pycache__
+.venv/
+dailyreleases.dist/
+dailyreleases.build/
+dailyreleases.onefile-build/
+dailyreleases.exe
