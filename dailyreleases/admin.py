@@ -6,6 +6,9 @@ import sqlite3
 import configparser
 from functools import wraps
 from pathlib import Path
+import threading
+import schedule
+import time
 from .Config import CONFIG
 from .Cache import Cache
 from .Generator import Generator
@@ -24,6 +27,69 @@ app.config['SECRET_KEY'] = os.urandom(24)
 # Initialize components
 generator = Generator()
 predb_handler = PREdbs()
+
+# Initialize scheduler
+scheduler_thread = None
+scheduler_running = False
+last_next_run = None
+
+def run_scheduler():
+    """Run the scheduler in a separate thread"""
+    global scheduler_running, last_next_run
+    scheduler_running = True
+    
+    while scheduler_running:
+        try:
+            schedule.run_pending()
+            # Only log next run time if it has changed
+            next_run = schedule.next_run()
+            if next_run and (last_next_run is None or next_run != last_next_run):
+                app.logger.info(f"Next scheduled run at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+                last_next_run = next_run
+        except Exception as e:
+            app.logger.error(f"Error in scheduler: {e}")
+        time.sleep(1)  # Check more frequently
+
+def start_scheduler():
+    """Start the scheduler thread"""
+    global scheduler_thread, scheduler_running
+    
+    # Stop existing scheduler if running
+    if scheduler_thread and scheduler_thread.is_alive():
+        scheduler_running = False
+        scheduler_thread.join()
+    
+    # Clear existing schedules
+    schedule.clear()
+    
+    # Parse schedule times
+    schedule_times = CONFIG.CONFIG['main']['schedule_times'].split(',')
+    timezone = CONFIG.CONFIG['main']['schedule_timezone']
+    
+    # Set up new schedules
+    for time_str in schedule_times:
+        time_str = time_str.strip()
+        if time_str:
+            # Create a function that will be called at the scheduled time
+            def scheduled_task():
+                try:
+                    app.logger.info(f"Running scheduled task at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                    # Create a new Generator instance for this thread
+                    thread_generator = Generator()
+                    thread_generator.generate(discord_post=True)
+                except Exception as e:
+                    app.logger.error(f"Error in scheduled task: {e}")
+            
+            # Schedule the task
+            schedule.every().day.at(time_str, timezone).do(scheduled_task)
+            app.logger.info(f"Scheduled run at {time_str} {timezone}")
+    
+    # Start scheduler thread
+    scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+    scheduler_thread.start()
+
+# Start scheduler when admin panel starts
+start_scheduler()
 
 def get_admin_config():
     """Get admin config with defaults if not set"""
@@ -231,6 +297,12 @@ def get_config():
                 'webhook_url': CONFIG.CONFIG['discord'].get('webhook_url', [])
             }
         
+        # Ensure scheduling settings are included
+        if 'schedule_times' not in safe_config['main']:
+            safe_config['main']['schedule_times'] = '00:00'
+        if 'schedule_timezone' not in safe_config['main']:
+            safe_config['main']['schedule_timezone'] = 'UTC'
+        
         return jsonify(safe_config)
     except Exception as e:
         app.logger.error(f"Error getting config: {e}")
@@ -304,6 +376,10 @@ def config_value(section, key):
             if section == 'logging' and key == 'level':
                 CONFIG.initialize_logging()
             
+            # If schedule settings were changed, restart the scheduler
+            if section == 'main' and key in ['schedule_times', 'schedule_timezone']:
+                start_scheduler()
+            
             return jsonify({'success': True})
     except Exception as e:
         app.logger.error(f"Error handling config value: {e}")
@@ -370,14 +446,34 @@ def get_logs():
         app.logger.error(f"Error reading logs: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-def run_admin_panel(host='127.0.0.1', port=5000):
+@app.route('/api/run', methods=['POST'])
+@requires_auth
+def run_program():
+    try:
+        # Import here to avoid circular imports
+        from .main import Main
+        
+        # Create a new Main instance and run in immediate mode
+        main = Main()
+        main.run_immediate_mode()
+        
+        return jsonify({'success': True, 'message': 'Program started successfully'})
+    except Exception as e:
+        app.logger.error(f"Error starting program: {e}")
+        return jsonify({'error': 'Failed to start program'}), 500
+
+def run_admin_panel(host='127.0.0.1', port=5000, debug=False):
+    """Run the admin panel using Waitress in production or Flask's server in debug mode"""
     # Use admin config values if available
     admin_config = get_admin_config()
     host = admin_config['host']
     port = int(admin_config['port'])
     
-    # Enable debug mode for development
-    app.debug = True
-    
-    # Run the Flask app
-    app.run(host=host, port=port) 
+    if debug:
+        # Use Flask's development server in debug mode
+        app.debug = True
+        app.run(host=host, port=port)
+    else:
+        # Use Waitress in production
+        from waitress import serve
+        serve(app, host=host, port=port) 

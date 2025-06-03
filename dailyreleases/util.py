@@ -1,9 +1,12 @@
 import difflib
 import logging
+import os
 import time
 from functools import wraps
 from typing import Sequence, List
+from time import sleep
 
+from .Config import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -46,25 +49,43 @@ def markdown_escape(text: str) -> str:
     return text.translate(str.maketrans(table))
 
 
-def retry(attempts=3, delay=0):
-    """
-    Retry wrapped function `attempts` times.
-    """
+def setup_logging():
+    """Configure logging for the application"""
+    log_level = getattr(logging, CONFIG.CONFIG['logging']['level'].upper())
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    
+    # Create logs directory if it doesn't exist
+    log_dir = CONFIG.DATA_DIR.joinpath('logs')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Configure file handler
+    file_handler = logging.FileHandler(log_dir.joinpath('main.log'))
+    file_handler.setFormatter(logging.Formatter(log_format))
+    
+    # Configure console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(log_format))
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
 
+
+def retry(attempts=3, delay=60):
+    """Retry decorator for functions that may fail"""
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            for i in range(1, attempts + 1):
+            for attempt in range(attempts):
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
-                    logger.exception(
-                        f"{func.__name__} attempt {i}/{attempts}", exc_info=e
-                    )
-                    if i >= attempts:
-                        raise
-                    time.sleep(delay)
-
+                    if attempt == attempts - 1:
+                        raise e
+                    logging.warning(f"Attempt {attempt + 1} failed: {e}")
+                    sleep(delay)
+            return None
         return wrapper
-
     return decorator

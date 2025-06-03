@@ -1,6 +1,6 @@
 [main]
 # mode is always admin for the web interface
-mode = admin
+mode = Admin Panel
 
 # api that converts epic's offerid to a store url id
 # you can run your own using this script: https://github.com/amir16yp/EpicInfo-API/blob/main/EpicInfo.py, nginx and a cronjob
@@ -8,13 +8,22 @@ egs_offeridapi_url = https://raw.githubusercontent.com/sffxzzp/EpicInfo/main/off
 # how many times to retry if fails to post
 retry = 3
 
+# Scheduling options
+# Format: HH:MM in 24-hour format, multiple times can be specified with commas
+# Example: 08:00,12:00,18:00
+schedule_times = 00:00
+# Timezone for scheduling (e.g., UTC, America/New_York, Europe/London)
+schedule_timezone = UTC
+
 [logging]
 level = INFO
 
 [discord]
 # Webhook URLs for Discord notifications
 # You can add multiple webhook URLs by separating them with commas
-webhook_url = https://discord.com/api/webhooks/????
+webhook_url = 
+enable_debughook = no
+debug_webhook_url = 
 
 [web]
 # Number of seconds to cache web requests (google, steam etc.). May help reduce the number of requests if the same game
