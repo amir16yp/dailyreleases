@@ -7,6 +7,7 @@ from .stores.StoreHandler import StoreHandler
 from . import __version__
 from .Config import CONFIG
 from .Generator import Generator
+from .admin import run_admin_panel
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,9 @@ class Main:
     def run_test_mode(self):
         self.generator.generate(discord_post=False)
 
+    def run_admin_panel(self):
+        run_admin_panel()
+
     def run_main(self):
         try:
             print(f"Starting Daily Releases Bot v{__version__}")
@@ -67,10 +71,12 @@ class Main:
             logger.info(f"Running in mode: {mode}")
             if mode == "test":
                 self.run_test_mode()
-            if mode == "immediately":
+            elif mode == "immediately":
                 self.run_immediate_mode()
-            if mode == "midnight":
+            elif mode == "midnight":
                 self.run_midnight_mode()
+            elif mode == "admin":
+                self.run_admin_panel()
         except Exception as e:
             logger.exception(e)
             raise e

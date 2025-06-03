@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Releases Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fas fa-server text-indigo-600 text-2xl"></i>
+                        <span class="ml-2 text-xl font-semibold text-gray-900">Daily Releases</span>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <button id="refreshBtn" class="p-2 rounded-full text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- System Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-indigo-100 text-indigo-600">
+                        <i class="fas fa-microchip text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">CPU Usage</p>
+                        <p id="cpu-usage" class="text-2xl font-semibold text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-600">
+                        <i class="fas fa-memory text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Memory Usage</p>
+                        <p id="memory-usage" class="text-2xl font-semibold text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                        <i class="fas fa-database text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Total Entries</p>
+                        <p id="total-entries" class="text-2xl font-semibold text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                        <i class="fas fa-hdd text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Database Size</p>
+                        <p id="db-size" class="text-2xl font-semibold text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Releases by Date -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Releases by Date</h3>
+                <div class="h-80">
+                    <canvas id="dateChart"></canvas>
+                </div>
+            </div>
+            <!-- Releases by Group -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Releases by Group</h3>
+                <div class="h-80">
+                    <canvas id="groupChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Configuration</h3>
+            </div>
+            <div class="p-6">
+                <div id="config-sections" class="space-y-6">
+                    <!-- Configuration sections will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Initialize charts
+        const dateChart = new Chart(document.getElementById('dateChart'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Releases',
+                    data: [],
+                    borderColor: 'rgb(79, 70, 229)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        const groupChart = new Chart(document.getElementById('groupChart'), {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Releases',
+                    data: [],
+                    backgroundColor: 'rgb(79, 70, 229)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Update system stats
+        async function updateSystemStats() {
+            try {
+                const response = await fetch('/api/stats/system');
+                const data = await response.json();
+                
+                document.getElementById('cpu-usage').textContent = `${data.cpu_percent.toFixed(1)}%`;
+                document.getElementById('memory-usage').textContent = `${data.memory_percent.toFixed(1)}%`;
+            } catch (error) {
+                console.error('Error fetching system stats:', error);
+            }
+        }
+
+        // Update cache stats
+        async function updateCacheStats() {
+            try {
+                const response = await fetch('/api/stats/cache');
+                const data = await response.json();
+                
+                document.getElementById('total-entries').textContent = data.total_entries;
+                document.getElementById('db-size').textContent = `${data.database_size_mb.toFixed(1)} MB`;
+            } catch (error) {
+                console.error('Error fetching cache stats:', error);
+            }
+        }
+
+        // Update release stats
+        async function updateReleaseStats() {
+            try {
+                const response = await fetch('/api/stats/releases');
+                const data = await response.json();
+                
+                // Update date chart
+                const dates = Object.keys(data.releases_by_date).reverse();
+                const dateCounts = dates.map(date => data.releases_by_date[date]);
+                
+                dateChart.data.labels = dates;
+                dateChart.data.datasets[0].data = dateCounts;
+                dateChart.update();
+                
+                // Update group chart
+                const groups = Object.keys(data.releases_by_group);
+                const groupCounts = groups.map(group => data.releases_by_group[group]);
+                
+                groupChart.data.labels = groups;
+                groupChart.data.datasets[0].data = groupCounts;
+                groupChart.update();
+            } catch (error) {
+                console.error('Error fetching release stats:', error);
+            }
+        }
+
+        // Update configuration
+        async function updateConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                
+                const configSections = document.getElementById('config-sections');
+                configSections.innerHTML = '';
+                
+                // Define dropdown options for different settings
+                const dropdownOptions = {
+                    mode: [
+                        { value: 'normal', label: 'Normal' },
+                        { value: 'debug', label: 'Debug' },
+                        { value: 'verbose', label: 'Verbose' }
+                    ],
+                    log_level: [
+                        { value: 'DEBUG', label: 'Debug' },
+                        { value: 'INFO', label: 'Info' },
+                        { value: 'WARNING', label: 'Warning' },
+                        { value: 'ERROR', label: 'Error' },
+                        { value: 'CRITICAL', label: 'Critical' }
+                    ],
+                    enable_debughook: [
+                        { value: 'yes', label: 'Yes' },
+                        { value: 'no', label: 'No' }
+                    ],
+                    auto_update: [
+                        { value: 'yes', label: 'Yes' },
+                        { value: 'no', label: 'No' }
+                    ],
+                    use_proxy: [
+                        { value: 'yes', label: 'Yes' },
+                        { value: 'no', label: 'No' }
+                    ]
+                };
+                
+                for (const [section, values] of Object.entries(data)) {
+                    const sectionDiv = document.createElement('div');
+                    sectionDiv.className = 'space-y-4';
+                    sectionDiv.innerHTML = `
+                        <h4 class="text-md font-medium text-gray-900">${section}</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${Object.entries(values).map(([key, value]) => {
+                                const isReadOnly = section === 'admin' && (key === 'username' || key === 'password');
+                                const hasDropdown = dropdownOptions[key];
+                                const isWebhook = key === 'webhook_url' || key === 'webhook_urls';
+                                
+                                if (isReadOnly) {
+                                    return `
+                                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                            <span class="text-sm font-medium text-gray-700">${key}</span>
+                                            <span class="text-sm text-gray-500">${value}</span>
+                                        </div>
+                                    `;
+                                }
+
+                                if (isWebhook) {
+                                    const webhookUrls = Array.isArray(value) ? value : [value];
+                                    return `
+                                        <div class="col-span-2">
+                                            <div class="mb-4">
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Webhook URLs</label>
+                                                <div class="space-y-2" id="webhook-container">
+                                                    ${webhookUrls.map((url, index) => `
+                                                        <div class="flex items-center space-x-2">
+                                                            <input type="text" 
+                                                                   value="${url}" 
+                                                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                   placeholder="Enter webhook URL">
+                                                            <button onclick="saveWebhook(this, '${section}', '${key}', ${index})" 
+                                                                    class="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                Save
+                                                            </button>
+                                                            <button onclick="testWebhook(this, '${url}')" 
+                                                                    class="px-3 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                                                Test
+                                                            </button>
+                                                            <button onclick="removeWebhook(this, '${section}', '${key}', ${index})" 
+                                                                    class="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500">
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                                <button onclick="addWebhook('${section}', '${key}')" 
+                                                        class="mt-2 px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                                    Add Webhook
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+
+                                if (hasDropdown) {
+                                    // Special handling for main mode
+                                    if (section === 'main' && key === 'mode') {
+                                        return `
+                                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                                <span class="text-sm font-medium text-gray-700">${key}</span>
+                                                <span class="text-sm text-gray-500">admin</span>
+                                            </div>
+                                        `;
+                                    }
+                                    
+                                    return `
+                                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                            <span class="text-sm font-medium text-gray-700">${key}</span>
+                                            <div class="flex items-center space-x-2">
+                                                <select class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                        data-section="${section}"
+                                                        data-key="${key}">
+                                                    ${dropdownOptions[key].map(option => `
+                                                        <option value="${option.value}" ${value === option.value ? 'selected' : ''}>
+                                                            ${option.label}
+                                                        </option>
+                                                    `).join('')}
+                                                </select>
+                                                <button class="save-config p-1 text-indigo-600 hover:text-indigo-800"
+                                                        data-section="${section}"
+                                                        data-key="${key}">
+                                                    <i class="fas fa-save"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+
+                                return `
+                                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                        <span class="text-sm font-medium text-gray-700">${key}</span>
+                                        <div class="flex items-center space-x-2">
+                                            <input type="text" 
+                                                   class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                   value="${value}"
+                                                   data-section="${section}"
+                                                   data-key="${key}">
+                                            <button class="save-config p-1 text-indigo-600 hover:text-indigo-800"
+                                                    data-section="${section}"
+                                                    data-key="${key}">
+                                                <i class="fas fa-save"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                    configSections.appendChild(sectionDiv);
+                }
+
+                // Add event listeners for save buttons
+                document.querySelectorAll('.save-config').forEach(button => {
+                    button.addEventListener('click', async function() {
+                        const section = this.dataset.section;
+                        const key = this.dataset.key;
+                        const input = document.querySelector(`[data-section="${section}"][data-key="${key}"]`);
+                        const value = input.value;
+
+                        try {
+                            const response = await fetch(`/api/config/${section}/${key}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ value: value })
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Failed to update configuration');
+                            }
+
+                            // Show success message
+                            const successMessage = document.createElement('div');
+                            successMessage.className = 'text-sm text-green-600 mt-1';
+                            successMessage.textContent = 'Saved';
+                            input.parentElement.appendChild(successMessage);
+                            setTimeout(() => successMessage.remove(), 2000);
+
+                        } catch (error) {
+                            console.error('Error updating config:', error);
+                            // Show error message
+                            const errorMessage = document.createElement('div');
+                            errorMessage.className = 'text-sm text-red-600 mt-1';
+                            errorMessage.textContent = 'Error saving';
+                            input.parentElement.appendChild(errorMessage);
+                            setTimeout(() => errorMessage.remove(), 2000);
+                        }
+                    });
+                });
+
+                // Add event listeners for webhook management
+                document.querySelectorAll('.add-webhook').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const section = this.dataset.section;
+                        const key = this.dataset.key;
+                        const webhookList = this.closest('.col-span-2').querySelector('.webhook-list');
+                        const newIndex = webhookList.children.length;
+                        
+                        const webhookDiv = document.createElement('div');
+                        webhookDiv.className = 'flex items-center space-x-2 p-2 bg-white rounded-lg border border-gray-200';
+                        webhookDiv.innerHTML = `
+                            <input type="text" 
+                                   class="flex-1 text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                   placeholder="Enter webhook URL"
+                                   data-section="${section}"
+                                   data-key="${key}"
+                                   data-index="${newIndex}">
+                            <button class="save-webhook p-2 text-indigo-600 hover:text-indigo-800 rounded-full hover:bg-indigo-50"
+                                    data-section="${section}"
+                                    data-key="${key}"
+                                    data-index="${newIndex}">
+                                <i class="fas fa-save"></i>
+                            </button>
+                            <button class="remove-webhook p-2 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50"
+                                    data-section="${section}"
+                                    data-key="${key}"
+                                    data-index="${newIndex}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                        webhookList.appendChild(webhookDiv);
+                    });
+                });
+
+                document.querySelectorAll('.save-webhook').forEach(button => {
+                    button.addEventListener('click', async function() {
+                        const section = this.dataset.section;
+                        const key = this.dataset.key;
+                        const webhookList = this.closest('.webhook-list');
+                        const inputs = webhookList.querySelectorAll('input');
+                        const urls = Array.from(inputs).map(input => input.value).filter(Boolean);
+
+                        try {
+                            const response = await fetch(`/api/config/${section}/${key}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ value: urls })
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Failed to update webhooks');
+                            }
+
+                            // Show success message
+                            const successMessage = document.createElement('div');
+                            successMessage.className = 'text-sm text-green-600 mt-1';
+                            successMessage.textContent = 'Webhooks saved';
+                            this.parentElement.appendChild(successMessage);
+                            setTimeout(() => successMessage.remove(), 2000);
+
+                        } catch (error) {
+                            console.error('Error updating webhooks:', error);
+                            // Show error message
+                            const errorMessage = document.createElement('div');
+                            errorMessage.className = 'text-sm text-red-600 mt-1';
+                            errorMessage.textContent = 'Error saving webhooks';
+                            this.parentElement.appendChild(errorMessage);
+                            setTimeout(() => errorMessage.remove(), 2000);
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.remove-webhook').forEach(button => {
+                    button.addEventListener('click', async function() {
+                        const section = this.dataset.section;
+                        const key = this.dataset.key;
+                        const webhookList = this.closest('.webhook-list');
+                        const inputs = webhookList.querySelectorAll('input');
+                        const urls = Array.from(inputs)
+                            .map(input => input.value)
+                            .filter((url, index) => index !== parseInt(this.dataset.index));
+
+                        try {
+                            const response = await fetch(`/api/config/${section}/${key}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ value: urls })
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Failed to remove webhook');
+                            }
+
+                            // Remove the webhook div
+                            this.closest('.flex').remove();
+
+                        } catch (error) {
+                            console.error('Error removing webhook:', error);
+                            // Show error message
+                            const errorMessage = document.createElement('div');
+                            errorMessage.className = 'text-sm text-red-600 mt-1';
+                            errorMessage.textContent = 'Error removing webhook';
+                            this.parentElement.appendChild(errorMessage);
+                            setTimeout(() => errorMessage.remove(), 2000);
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error fetching config:', error);
+            }
+        }
+
+        // Update all data
+        async function updateAll() {
+            await Promise.all([
+                updateSystemStats(),
+                updateCacheStats(),
+                updateReleaseStats(),
+                updateConfig()
+            ]);
+        }
+
+        // Initial update
+        updateAll();
+
+        // Refresh button click handler
+        document.getElementById('refreshBtn').addEventListener('click', updateAll);
+
+        // Auto-refresh every 30 seconds
+        setInterval(updateAll, 30000);
+
+        // Add these functions to the script section
+        async function saveWebhook(button, section, key, index) {
+            const container = button.closest('.flex');
+            const input = container.querySelector('input');
+            const url = input.value.trim();
+            
+            try {
+                // Get all current webhook URLs
+                const webhookContainer = document.getElementById('webhook-container');
+                const allInputs = webhookContainer.querySelectorAll('input');
+                const urls = Array.from(allInputs).map(input => input.value.trim()).filter(url => url);
+                
+                const response = await fetch(`/api/config/${section}/${key}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        value: urls
+                    })
+                });
+                
+                if (response.ok) {
+                    showMessage(container, 'Saved successfully!', 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(container, data.error || 'Failed to save', 'error');
+                }
+            } catch (error) {
+                showMessage(container, 'Error saving webhook', 'error');
+            }
+        }
+
+        async function removeWebhook(button, section, key, index) {
+            const container = button.closest('.flex');
+            const webhookContainer = document.getElementById('webhook-container');
+            
+            try {
+                // Get all current webhook URLs except the one being removed
+                const allInputs = webhookContainer.querySelectorAll('input');
+                const urls = Array.from(allInputs)
+                    .map(input => input.value.trim())
+                    .filter((url, i) => i !== index && url);
+                
+                const response = await fetch(`/api/config/${section}/${key}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        value: urls
+                    })
+                });
+                
+                if (response.ok) {
+                    container.remove();
+                    if (webhookContainer.children.length === 0) {
+                        addWebhook(section, key);
+                    }
+                } else {
+                    const data = await response.json();
+                    showMessage(container, data.error || 'Failed to remove', 'error');
+                }
+            } catch (error) {
+                showMessage(container, 'Error removing webhook', 'error');
+            }
+        }
+
+        function addWebhook(section, key) {
+            const webhookContainer = document.getElementById('webhook-container');
+            const newIndex = webhookContainer.children.length;
+            
+            const newWebhook = document.createElement('div');
+            newWebhook.className = 'flex items-center space-x-2';
+            newWebhook.innerHTML = `
+                <input type="text" 
+                       value="" 
+                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Enter webhook URL">
+                <button onclick="saveWebhook(this, '${section}', '${key}', ${newIndex})" 
+                        class="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    Save
+                </button>
+                <button onclick="testWebhook(this, '')" 
+                        class="px-3 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                    Test
+                </button>
+                <button onclick="removeWebhook(this, '${section}', '${key}', ${newIndex})" 
+                        class="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500">
+                    Remove
+                </button>
+            `;
+            
+            webhookContainer.appendChild(newWebhook);
+            newWebhook.querySelector('input').focus();
+        }
+
+        function showMessage(container, message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `mt-2 text-sm ${type === 'success' ? 'text-green-600' : 'text-red-600'}`;
+            messageDiv.textContent = message;
+            
+            container.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), 3000);
+        }
+
+        // Add this function to the script section
+        async function testWebhook(button, url) {
+            const container = button.closest('.flex');
+            try {
+                const response = await fetch('/api/test-webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ webhook_url: url })
+                });
+                
+                if (response.ok) {
+                    showMessage(container, 'Test message sent successfully!', 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(container, data.error || 'Failed to send test message', 'error');
+                }
+            } catch (error) {
+                showMessage(container, 'Error sending test message', 'error');
+            }
+        }
+    </script>
+</body>
+</html> 
