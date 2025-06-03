@@ -36,7 +36,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: daily-releases-linux
-        path: dailyreleases
+        path: |
+          ./dailyreleases
+          !./dailyreleases/
         if-no-files-found: error
     
     - name: Release
@@ -63,7 +65,7 @@ jobs:
     
     - name: Build with Nuitka
       run: |
-        python -m nuitka --standalone --onefile --remove-output dailyreleases.py
+        echo "yes" | python -m nuitka --standalone --onefile --remove-output dailyreleases.py
     
     - name: Upload Windows Build Artifact
       uses: actions/upload-artifact@v4
