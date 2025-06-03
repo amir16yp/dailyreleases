@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Releases Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .loading {
@@ -93,14 +93,14 @@
             <div class="bg-white rounded-lg shadow p-6">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Releases by Date</h3>
                 <div class="h-80">
-                    <canvas id="dateChart"></canvas>
+                    <div id="dateChart"></div>
                 </div>
             </div>
             <!-- Releases by Group -->
             <div class="bg-white rounded-lg shadow p-6">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Releases by Group</h3>
                 <div class="h-80">
-                    <canvas id="groupChart"></canvas>
+                    <div id="groupChart"></div>
                 </div>
             </div>
         </div>
@@ -135,48 +135,8 @@
 
     <script>
         // Initialize charts
-        const dateChart = new Chart(document.getElementById('dateChart'), {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Releases',
-                    data: [],
-                    borderColor: 'rgb(79, 70, 229)',
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-
-        const groupChart = new Chart(document.getElementById('groupChart'), {
-            type: 'bar',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Releases',
-                    data: [],
-                    backgroundColor: 'rgb(79, 70, 229)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
+        let dateChart = null;
+        let groupChart = null;
 
         // Update system stats
         async function updateSystemStats() {
@@ -214,17 +174,73 @@
                 const dates = Object.keys(data.releases_by_date).reverse();
                 const dateCounts = dates.map(date => data.releases_by_date[date]);
                 
-                dateChart.data.labels = dates;
-                dateChart.data.datasets[0].data = dateCounts;
-                dateChart.update();
-                
+                const dateData = [{
+                    x: dates,
+                    y: dateCounts,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Releases',
+                    line: {
+                        color: 'rgb(79, 70, 229)',
+                        width: 2
+                    },
+                    marker: {
+                        color: 'rgb(79, 70, 229)',
+                        size: 6
+                    }
+                }];
+
+                const dateLayout = {
+                    margin: { t: 20, r: 20, b: 40, l: 40 },
+                    showlegend: false,
+                    xaxis: {
+                        title: 'Date',
+                        tickangle: -45
+                    },
+                    yaxis: {
+                        title: 'Number of Releases'
+                    },
+                    hovermode: 'closest'
+                };
+
+                if (dateChart) {
+                    Plotly.react('dateChart', dateData, dateLayout);
+                } else {
+                    dateChart = Plotly.newPlot('dateChart', dateData, dateLayout);
+                }
+
                 // Update group chart
                 const groups = Object.keys(data.releases_by_group);
                 const groupCounts = groups.map(group => data.releases_by_group[group]);
                 
-                groupChart.data.labels = groups;
-                groupChart.data.datasets[0].data = groupCounts;
-                groupChart.update();
+                const groupData = [{
+                    x: groups,
+                    y: groupCounts,
+                    type: 'bar',
+                    name: 'Releases',
+                    marker: {
+                        color: 'rgb(79, 70, 229)'
+                    }
+                }];
+
+                const groupLayout = {
+                    margin: { t: 20, r: 20, b: 40, l: 40 },
+                    showlegend: false,
+                    xaxis: {
+                        title: 'Group',
+                        tickangle: -45
+                    },
+                    yaxis: {
+                        title: 'Number of Releases'
+                    },
+                    hovermode: 'closest'
+                };
+
+                if (groupChart) {
+                    Plotly.react('groupChart', groupData, groupLayout);
+                } else {
+                    groupChart = Plotly.newPlot('groupChart', groupData, groupLayout);
+                }
             } catch (error) {
                 console.error('Error fetching release stats:', error);
             }
