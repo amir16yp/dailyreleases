@@ -1,28 +1,41 @@
 [main]
-# mode =
-#   immediately : Immediately generate and submit post to own subreddit. PM reddit notify_users with link to post. This
-#     mode is useful for cron jobs, e.g. generating at midnight: '0 0 * * * /usr/local/bin/python3.7 -m dailyreleases'.
-#   midnight : Like 'immediately', but run continuously, generating and submitting post at midnight every day.
-#   test : Generate and print to log and console. Nothing is posted to reddit.
-mode = test
+# mode is always admin for the web interface
+mode = Admin Panel
 
 # api that converts epic's offerid to a store url id
 # you can run your own using this script: https://github.com/amir16yp/EpicInfo-API/blob/main/EpicInfo.py, nginx and a cronjob
 egs_offeridapi_url = https://raw.githubusercontent.com/sffxzzp/EpicInfo/main/offerid.json
 # how many times to retry if fails to post
 retry = 3
-# backup NFO files locally or not
-backup_nfos = no
+
+# Scheduling options
+# Format: HH:MM in 24-hour format, multiple times can be specified with commas
+# Example: 08:00,12:00,18:00
+schedule_times = 00:00
+# Timezone for scheduling (e.g., UTC, America/New_York, Europe/London)
+schedule_timezone = UTC
 
 [logging]
-level = DEBUG
-backup_count = 10
+level = INFO
 
 [discord]
-webhook_url = https://discord.com/api/webhooks/????
-debug_webhook_url = https://discord.com/api/webhooks/????
+# Webhook URLs for Discord notifications
+# You can add multiple webhook URLs by separating them with commas
+webhook_url = 
 enable_debughook = no
+debug_webhook_url = 
+
 [web]
 # Number of seconds to cache web requests (google, steam etc.). May help reduce the number of requests if the same game
 # has multiple releases on the same day.
 cache_time = 600
+
+[admin]
+# Host to bind the admin panel to
+host = 127.0.0.1
+# Port to run the admin panel on
+port = 5000
+# Admin username for basic authentication
+username = admin
+# Admin password for basic authentication (plain text for now, will be hashed in the future)
+password = changeme

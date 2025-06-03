@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Releases Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fas fa-server text-indigo-600 text-2xl"></i>
+                        <span class="ml-2 text-xl font-semibold text-gray-900">Daily Releases</span>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <button id="refreshBtn" class="p-2 rounded-full text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- System Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-indigo-100 text-indigo-600">
+                        <i class="fas fa-microchip text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">CPU Usage</p>
+                        <p id="cpu-usage" class="text-2xl font-semibold text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-600">
+                        <i class="fas fa-memory text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Memory Usage</p>
+                        <p id="memory-usage" class="text-2xl font-semibold text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                        <i class="fas fa-database text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Total Entries</p>
+                        <p id="total-entries" class="text-2xl font-semibold text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                        <i class="fas fa-hdd text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Database Size</p>
+                        <p id="db-size" class="text-2xl font-semibold text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Releases by Date -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Releases by Date</h3>
+                <div class="h-80">
+                    <div id="dateChart"></div>
+                </div>
+            </div>
+            <!-- Releases by Group -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Releases by Group</h3>
+                <div class="h-80">
+                    <div id="groupChart"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="bg-white rounded-lg shadow mb-8">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Configuration</h3>
+            </div>
+            <div class="p-6">
+                <div id="config-sections" class="space-y-6">
+                    <!-- Configuration sections will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Program Logs</h3>
+                <button onclick="refreshLogs()" class="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div id="log-container" class="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm overflow-auto" style="height: 400px;">
+                    <div class="whitespace-pre-wrap" id="log-content">Loading logs...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Initialize charts
+        let dateChart = null;
+        let groupChart = null;
+
+        // Update system stats
+        async function updateSystemStats() {
+            try {
+                const response = await fetch('/api/stats/system');
+                const data = await response.json();
+                
+                document.getElementById('cpu-usage').textContent = `${data.cpu_percent.toFixed(1)}%`;
+                document.getElementById('memory-usage').textContent = `${data.memory_percent.toFixed(1)}%`;
+            } catch (error) {
+                console.error('Error fetching system stats:', error);
+            }
+        }
+
+        // Update cache stats
+        async function updateCacheStats() {
+            try {
+                const response = await fetch('/api/stats/cache');
+                const data = await response.json();
+                
+                document.getElementById('total-entries').textContent = data.total_entries;
+                document.getElementById('db-size').textContent = `${data.database_size_mb.toFixed(1)} MB`;
+            } catch (error) {
+                console.error('Error fetching cache stats:', error);
+            }
+        }
+
+        // Update release stats
+        async function updateReleaseStats() {
+            try {
+                const response = await fetch('/api/stats/releases');
+                const data = await response.json();
+                
+                // Update date chart
+                const dates = Object.keys(data.releases_by_date).reverse();
+                const dateCounts = dates.map(date => data.releases_by_date[date]);
+                
+                const dateData = [{
+                    x: dates,
+                    y: dateCounts,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Releases',
+                    line: {
+                        color: 'rgb(79, 70, 229)',
+                        width: 2
+                    },
+                    marker: {
+                        color: 'rgb(79, 70, 229)',
+                        size: 6
+                    }
+                }];
+
+                const dateLayout = {
+                    margin: { t: 20, r: 20, b: 40, l: 40 },
+                    showlegend: false,
+                    xaxis: {
+                        title: 'Date',
+                        tickangle: -45
+                    },
+                    yaxis: {
+                        title: 'Number of Releases'
+                    },
+                    hovermode: 'closest'
+                };
+
+                if (dateChart) {
+                    Plotly.react('dateChart', dateData, dateLayout);
+                } else {
+                    dateChart = Plotly.newPlot('dateChart', dateData, dateLayout);
+                }
+
+                // Update group chart
+                const groups = Object.keys(data.releases_by_group);
+                const groupCounts = groups.map(group => data.releases_by_group[group]);
+                
+                const groupData = [{
+                    x: groups,
+                    y: groupCounts,
+                    type: 'bar',
+                    name: 'Releases',
+                    marker: {
+                        color: 'rgb(79, 70, 229)'
+                    }
+                }];
+
+                const groupLayout = {
+                    margin: { t: 20, r: 20, b: 40, l: 40 },
+                    showlegend: false,
+                    xaxis: {
+                        title: 'Group',
+                        tickangle: -45
+                    },
+                    yaxis: {
+                        title: 'Number of Releases'
+                    },
+                    hovermode: 'closest'
+                };
+
+                if (groupChart) {
+                    Plotly.react('groupChart', groupData, groupLayout);
+                } else {
+                    groupChart = Plotly.newPlot('groupChart', groupData, groupLayout);
+                }
+            } catch (error) {
+                console.error('Error fetching release stats:', error);
+            }
+        }
+
+        // Update configuration
+        async function updateConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                
+                const configSections = document.getElementById('config-sections');
+                configSections.innerHTML = '';
+                
+                // Define dropdown options for different settings
+                const dropdownOptions = {
+                    mode: [
+                        { value: 'admin', label: 'Admin Panel' },
+                        { value: 'scheduled', label: 'Scheduled' },
+                        { value: 'midnight', label: 'Midnight' },
+                        { value: 'immediately', label: 'Immediate' },
+                        { value: 'test', label: 'Test' }
+                    ],
+                    log_level: [
+                        { value: 'DEBUG', label: 'Debug' },
+                        { value: 'INFO', label: 'Info' },
+                        { value: 'WARNING', label: 'Warning' },
+                        { value: 'ERROR', label: 'Error' },
+                        { value: 'CRITICAL', label: 'Critical' }
+                    ],
+                    enable_debughook: [
+                        { value: 'yes', label: 'Yes' },
+                        { value: 'no', label: 'No' }
+                    ],
+                    auto_update: [
+                        { value: 'yes', label: 'Yes' },
+                        { value: 'no', label: 'No' }
+                    ],
+                    use_proxy: [
+                        { value: 'yes', label: 'Yes' },
+                        { value: 'no', label: 'No' }
+                    ]
+                };
+                
+                // Add timezone options
+                const timezoneOptions = [
+                    'UTC',
+                    'Africa/Abidjan',
+                    'Africa/Accra',
+                    'Africa/Addis_Ababa',
+                    'Africa/Algiers',
+                    'Africa/Asmara',
+                    'Africa/Bamako',
+                    'Africa/Bangui',
+                    'Africa/Banjul',
+                    'Africa/Bissau',
+                    'Africa/Blantyre',
+                    'Africa/Brazzaville',
+                    'Africa/Bujumbura',
+                    'Africa/Cairo',
+                    'Africa/Casablanca',
+                    'Africa/Ceuta',
+                    'Africa/Conakry',
+                    'Africa/Dakar',
+                    'Africa/Dar_es_Salaam',
+                    'Africa/Djibouti',
+                    'Africa/Douala',
+                    'Africa/El_Aaiun',
+                    'Africa/Freetown',
+                    'Africa/Gaborone',
+                    'Africa/Harare',
+                    'Africa/Johannesburg',
+                    'Africa/Juba',
+                    'Africa/Kampala',
+                    'Africa/Khartoum',
+                    'Africa/Kigali',
+                    'Africa/Kinshasa',
+                    'Africa/Lagos',
+                    'Africa/Libreville',
+                    'Africa/Lome',
+                    'Africa/Luanda',
+                    'Africa/Lubumbashi',
+                    'Africa/Lusaka',
+                    'Africa/Malabo',
+                    'Africa/Maputo',
+                    'Africa/Maseru',
+                    'Africa/Mbabane',
+                    'Africa/Mogadishu',
+                    'Africa/Monrovia',
+                    'Africa/Nairobi',
+                    'Africa/Ndjamena',
+                    'Africa/Niamey',
+                    'Africa/Nouakchott',
+                    'Africa/Ouagadougou',
+                    'Africa/Porto-Novo',
+                    'Africa/Sao_Tome',
+                    'Africa/Tripoli',
+                    'Africa/Tunis',
+                    'Africa/Windhoek',
+                    'America/Adak',
+                    'America/Anchorage',
+                    'America/Anguilla',
+                    'America/Antigua',
+                    'America/Araguaina',
+                    'America/Argentina/Buenos_Aires',
+                    'America/Argentina/Catamarca',
+                    'America/Argentina/Cordoba',
+                    'America/Argentina/Jujuy',
+                    'America/Argentina/La_Rioja',
+                    'America/Argentina/Mendoza',
+                    'America/Argentina/Rio_Gallegos',
+                    'America/Argentina/Salta',
+                    'America/Argentina/San_Juan',
+                    'America/Argentina/San_Luis',
+                    'America/Argentina/Tucuman',
+                    'America/Argentina/Ushuaia',
+                    'America/Aruba',
+                    'America/Asuncion',
+                    'America/Atikokan',
+                    'America/Bahia',
+                    'America/Bahia_Banderas',
+                    'America/Barbados',
+                    'America/Belem',
+                    'America/Belize',
+                    'America/Blanc-Sablon',
+                    'America/Boa_Vista',
+                    'America/Bogota',
+                    'America/Boise',
+                    'America/Cambridge_Bay',
+                    'America/Campo_Grande',
+                    'America/Cancun',
+                    'America/Caracas',
+                    'America/Cayenne',
+                    'America/Cayman',
+                    'America/Chicago',
+                    'America/Chihuahua',
+                    'America/Costa_Rica',
+                    'America/Creston',
+                    'America/Cuiaba',
+                    'America/Curacao',
+                    'America/Danmarkshavn',
+                    'America/Dawson',
+                    'America/Dawson_Creek',
+                    'America/Denver',
+                    'America/Detroit',
+                    'America/Dominica',
+                    'America/Edmonton',
+                    'America/Eirunepe',
+                    'America/El_Salvador',
+                    'America/Fort_Nelson',
+                    'America/Fortaleza',
+                    'America/Glace_Bay',
+                    'America/Godthab',
+                    'America/Goose_Bay',
+                    'America/Grand_Turk',
+                    'America/Grenada',
+                    'America/Guadeloupe',
+                    'America/Guatemala',
+                    'America/Guayaquil',
+                    'America/Guyana',
+                    'America/Halifax',
+                    'America/Havana',
+                    'America/Hermosillo',
+                    'America/Indiana/Indianapolis',
+                    'America/Indiana/Knox',
+                    'America/Indiana/Marengo',
+                    'America/Indiana/Petersburg',
+                    'America/Indiana/Tell_City',
+                    'America/Indiana/Vevay',
+                    'America/Indiana/Vincennes',
+                    'America/Indiana/Winamac',
+                    'America/Inuvik',
+                    'America/Iqaluit',
+                    'America/Jamaica',
+                    'America/Juneau',
+                    'America/Kentucky/Louisville',
+                    'America/Kentucky/Monticello',
+                    'America/Kralendijk',
+                    'America/La_Paz',
+                    'America/Lima',
+                    'America/Los_Angeles',
+                    'America/Lower_Princes',
+                    'America/Maceio',
+                    'America/Managua',
+                    'America/Manaus',
+                    'America/Marigot',
+                    'America/Martinique',
+                    'America/Matamoros',
+                    'America/Mazatlan',
+                    'America/Menominee',
+                    'America/Merida',
+                    'America/Metlakatla',
+                    'America/Mexico_City',
+                    'America/Miquelon',
+                    'America/Moncton',
+                    'America/Monterrey',
+                    'America/Montevideo',
+                    'America/Montreal',
+                    'America/Montserrat',
+                    'America/Nassau',
+                    'America/New_York',
+                    'America/Nipigon',
+                    'America/Nome',
+                    'America/Noronha',
+                    'America/North_Dakota/Beulah',
+                    'America/North_Dakota/Center',
+                    'America/North_Dakota/New_Salem',
+                    'America/Ojinaga',
+                    'America/Panama',
+                    'America/Pangnirtung',
+                    'America/Paramaribo',
+                    'America/Phoenix',
+                    'America/Port-au-Prince',
+                    'America/Port_of_Spain',
+                    'America/Porto_Velho',
+                    'America/Puerto_Rico',
+                    'America/Punta_Arenas',
+                    'America/Rainy_River',
+                    'America/Rankin_Inlet',
+                    'America/Recife',
+                    'America/Regina',
+                    'America/Resolute',
+                    'America/Rio_Branco',
+                    'America/Santarem',
+                    'America/Santiago',
+                    'America/Santo_Domingo',
+                    'America/Sao_Paulo',
+                    'America/Scoresbysund',
+                    'America/Sitka',
+                    'America/St_Barthelemy',
+                    'America/St_Johns',
+                    'America/St_Kitts',
+                    'America/St_Lucia',
+                    'America/St_Thomas',
+                    'America/St_Vincent',
+                    'America/Swift_Current',
+                    'America/Tegucigalpa',
+                    'America/Thule',
+                    'America/Thunder_Bay',
+                    'America/Tijuana',
+                    'America/Toronto',
+                    'America/Tortola',
+                    'America/Vancouver',
+                    'America/Whitehorse',
+                    'America/Winnipeg',
+                    'America/Yakutat',
+                    'America/Yellowknife',
+                    'Antarctica/Casey',
+                    'Antarctica/Davis',
+                    'Antarctica/DumontDUrville',
+                    'Antarctica/Macquarie',
+                    'Antarctica/Mawson',
+                    'Antarctica/McMurdo',
+                    'Antarctica/Palmer',
+                    'Antarctica/Rothera',
+                    'Antarctica/Syowa',
+                    'Antarctica/Troll',
+                    'Antarctica/Vostok',
+                    'Arctic/Longyearbyen',
+                    'Asia/Aden',
+                    'Asia/Almaty',
+                    'Asia/Amman',
+                    'Asia/Anadyr',
+                    'Asia/Aqtau',
+                    'Asia/Aqtobe',
+                    'Asia/Ashgabat',
+                    'Asia/Atyrau',
+                    'Asia/Baghdad',
+                    'Asia/Bahrain',
+                    'Asia/Baku',
+                    'Asia/Bangkok',
+                    'Asia/Barnaul',
+                    'Asia/Beirut',
+                    'Asia/Bishkek',
+                    'Asia/Brunei',
+                    'Asia/Chita',
+                    'Asia/Choibalsan',
+                    'Asia/Colombo',
+                    'Asia/Damascus',
+                    'Asia/Dhaka',
+                    'Asia/Dili',
+                    'Asia/Dubai',
+                    'Asia/Dushanbe',
+                    'Asia/Famagusta',
+                    'Asia/Gaza',
+                    'Asia/Hebron',
+                    'Asia/Ho_Chi_Minh',
+                    'Asia/Hong_Kong',
+                    'Asia/Hovd',
+                    'Asia/Irkutsk',
+                    'Asia/Jakarta',
+                    'Asia/Jayapura',
+                    'Asia/Jerusalem',
+                    'Asia/Kabul',
+                    'Asia/Kamchatka',
+                    'Asia/Karachi',
+                    'Asia/Kathmandu',
+                    'Asia/Khandyga',
+                    'Asia/Kolkata',
+                    'Asia/Krasnoyarsk',
+                    'Asia/Kuala_Lumpur',
+                    'Asia/Kuching',
+                    'Asia/Kuwait',
+                    'Asia/Macau',
+                    'Asia/Magadan',
+                    'Asia/Makassar',
+                    'Asia/Manila',
+                    'Asia/Muscat',
+                    'Asia/Nicosia',
+                    'Asia/Novokuznetsk',
+                    'Asia/Novosibirsk',
+                    'Asia/Omsk',
+                    'Asia/Oral',
+                    'Asia/Phnom_Penh',
+                    'Asia/Pontianak',
+                    'Asia/Pyongyang',
+                    'Asia/Qatar',
+                    'Asia/Qostanay',
+                    'Asia/Qyzylorda',
+                    'Asia/Riyadh',
+                    'Asia/Sakhalin',
+                    'Asia/Samarkand',
+                    'Asia/Seoul',
+                    'Asia/Shanghai',
+                    'Asia/Singapore',
+                    'Asia/Srednekolymsk',
+                    'Asia/Taipei',
+                    'Asia/Tashkent',
+                    'Asia/Tbilisi',
+                    'Asia/Tehran',
+                    'Asia/Thimphu',
+                    'Asia/Tokyo',
+                    'Asia/Tomsk',
+                    'Asia/Ulaanbaatar',
+                    'Asia/Urumqi',
+                    'Asia/Ust-Nera',
+                    'Asia/Vientiane',
+                    'Asia/Vladivostok',
+                    'Asia/Yakutsk',
+                    'Asia/Yangon',
+                    'Asia/Yekaterinburg',
+                    'Asia/Yerevan',
+                    'Atlantic/Azores',
+                    'Atlantic/Bermuda',
+                    'Atlantic/Canary',
+                    'Atlantic/Cape_Verde',
+                    'Atlantic/Faroe',
+                    'Atlantic/Madeira',
+                    'Atlantic/Reykjavik',
+                    'Atlantic/South_Georgia',
+                    'Atlantic/St_Helena',
+                    'Atlantic/Stanley',
+                    'Australia/Adelaide',
+                    'Australia/Brisbane',
+                    'Australia/Broken_Hill',
+                    'Australia/Currie',
+                    'Australia/Darwin',
+                    'Australia/Eucla',
+                    'Australia/Hobart',
+                    'Australia/Lindeman',
+                    'Australia/Lord_Howe',
+                    'Australia/Melbourne',
+                    'Australia/Perth',
+                    'Australia/Sydney',
+                    'Europe/Amsterdam',
+                    'Europe/Andorra',
+                    'Europe/Astrakhan',
+                    'Europe/Athens',
+                    'Europe/Belgrade',
+                    'Europe/Berlin',
+                    'Europe/Bratislava',
+                    'Europe/Brussels',
+                    'Europe/Bucharest',
+                    'Europe/Budapest',
+                    'Europe/Busingen',
+                    'Europe/Chisinau',
+                    'Europe/Copenhagen',
+                    'Europe/Dublin',
+                    'Europe/Gibraltar',
+                    'Europe/Guernsey',
+                    'Europe/Helsinki',
+                    'Europe/Isle_of_Man',
+                    'Europe/Istanbul',
+                    'Europe/Jersey',
+                    'Europe/Kaliningrad',
+                    'Europe/Kiev',
+                    'Europe/Kirov',
+                    'Europe/Lisbon',
+                    'Europe/Ljubljana',
+                    'Europe/London',
+                    'Europe/Luxembourg',
+                    'Europe/Madrid',
+                    'Europe/Malta',
+                    'Europe/Mariehamn',
+                    'Europe/Minsk',
+                    'Europe/Monaco',
+                    'Europe/Moscow',
+                    'Europe/Oslo',
+                    'Europe/Paris',
+                    'Europe/Podgorica',
+                    'Europe/Prague',
+                    'Europe/Riga',
+                    'Europe/Rome',
+                    'Europe/Samara',
+                    'Europe/San_Marino',
+                    'Europe/Sarajevo',
+                    'Europe/Saratov',
+                    'Europe/Simferopol',
+                    'Europe/Skopje',
+                    'Europe/Sofia',
+                    'Europe/Stockholm',
+                    'Europe/Tallinn',
+                    'Europe/Tirane',
+                    'Europe/Ulyanovsk',
+                    'Europe/Uzhgorod',
+                    'Europe/Vaduz',
+                    'Europe/Vatican',
+                    'Europe/Vienna',
+                    'Europe/Vilnius',
+                    'Europe/Volgograd',
+                    'Europe/Warsaw',
+                    'Europe/Zagreb',
+                    'Europe/Zaporozhye',
+                    'Europe/Zurich',
+                    'Indian/Antananarivo',
+                    'Indian/Chagos',
+                    'Indian/Christmas',
+                    'Indian/Cocos',
+                    'Indian/Comoro',
+                    'Indian/Kerguelen',
+                    'Indian/Mahe',
+                    'Indian/Maldives',
+                    'Indian/Mauritius',
+                    'Indian/Mayotte',
+                    'Indian/Reunion',
+                    'Pacific/Apia',
+                    'Pacific/Auckland',
+                    'Pacific/Bougainville',
+                    'Pacific/Chatham',
+                    'Pacific/Chuuk',
+                    'Pacific/Easter',
+                    'Pacific/Efate',
+                    'Pacific/Enderbury',
+                    'Pacific/Fakaofo',
+                    'Pacific/Fiji',
+                    'Pacific/Funafuti',
+                    'Pacific/Galapagos',
+                    'Pacific/Gambier',
+                    'Pacific/Guadalcanal',
+                    'Pacific/Guam',
+                    'Pacific/Honolulu',
+                    'Pacific/Kiritimati',
+                    'Pacific/Kosrae',
+                    'Pacific/Kwajalein',
+                    'Pacific/Majuro',
+                    'Pacific/Marquesas',
+                    'Pacific/Midway',
+                    'Pacific/Nauru',
+                    'Pacific/Niue',
+                    'Pacific/Norfolk',
+                    'Pacific/Noumea',
+                    'Pacific/Pago_Pago',
+                    'Pacific/Palau',
+                    'Pacific/Pitcairn',
+                    'Pacific/Pohnpei',
+                    'Pacific/Port_Moresby',
+                    'Pacific/Rarotonga',
+                    'Pacific/Saipan',
+                    'Pacific/Tahiti',
+                    'Pacific/Tarawa',
+                    'Pacific/Tongatapu',
+                    'Pacific/Wake',
+                    'Pacific/Wallis'
+                ];
+
+                for (const [section, values] of Object.entries(data)) {
+                    const sectionDiv = document.createElement('div');
+                    sectionDiv.className = 'space-y-4';
+                    
+                    // Add section header with description for main section
+                    let sectionHeader = `<h4 class="text-md font-medium text-gray-900">${section}</h4>`;
+                    if (section === 'main') {
+                        sectionHeader += `
+                            <div class="flex justify-between items-center mb-4">
+                                <p class="text-sm text-gray-500">
+                                    Configure the main program settings. Set the mode to "Scheduled" to run the program at specific times.
+                                </p>
+                                <button onclick="runNow()" 
+                                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                    <i class="fas fa-play mr-2"></i>Run Now
+                                </button>
+                            </div>
+                        `;
+                    }
+                    
+                    sectionDiv.innerHTML = sectionHeader + `
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${Object.entries(values).map(([key, value]) => {
+                                const isReadOnly = (section === 'admin' && (key === 'username' || key === 'password' || key === 'host' || key === 'port'));
+                                const hasDropdown = dropdownOptions[key];
+                                const isWebhook = key === 'webhook_url' || key === 'webhook_urls';
+                                
+                                // Skip backup-related settings
+                                if (key === 'backup_count' || key === 'backup_nfos') {
+                                    return '';
+                                }
+
+                                // Special handling for schedule times
+                                if (key === 'schedule_times') {
+                                    return `
+                                        <div class="col-span-2">
+                                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                                <div>
+                                                    <span class="text-sm font-medium text-gray-700">Schedule Times</span>
+                                                    <p class="text-xs text-gray-500 mt-1">Enter times in 24-hour format (HH:MM), separated by commas</p>
+                                                </div>
+                                                <div class="flex items-center space-x-2">
+                                                    <input type="text" 
+                                                           class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                           value="${value}"
+                                                           placeholder="e.g., 08:00,12:00,18:00"
+                                                           data-section="${section}"
+                                                           data-key="${key}">
+                                                    <button class="save-config p-1 text-indigo-600 hover:text-indigo-800"
+                                                            data-section="${section}"
+                                                            data-key="${key}">
+                                                        <i class="fas fa-save"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+
+                                // Special handling for timezone
+                                if (key === 'schedule_timezone') {
+                                    return `
+                                        <div class="col-span-2">
+                                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                                <div>
+                                                    <span class="text-sm font-medium text-gray-700">Schedule Timezone</span>
+                                                    <p class="text-xs text-gray-500 mt-1">Select the timezone for scheduled runs</p>
+                                                </div>
+                                                <div class="flex items-center space-x-2">
+                                                    <select class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                            data-section="${section}"
+                                                            data-key="${key}">
+                                                        ${timezoneOptions.map(tz => `
+                                                            <option value="${tz}" ${value === tz ? 'selected' : ''}>
+                                                                ${tz}
+                                                            </option>
+                                                        `).join('')}
+                                                    </select>
+                                                    <button class="save-config p-1 text-indigo-600 hover:text-indigo-800"
+                                                            data-section="${section}"
+                                                            data-key="${key}">
+                                                        <i class="fas fa-save"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                                
+                                if (isReadOnly) {
+                                    return `
+                                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                            <span class="text-sm font-medium text-gray-700">${key}</span>
+                                            <span class="text-sm text-gray-500">${value}</span>
+                                        </div>
+                                    `;
+                                }
+
+                                if (isWebhook) {
+                                    const webhookUrls = Array.isArray(value) ? value : [value];
+                                    return `
+                                        <div class="col-span-2">
+                                            <div class="mb-4">
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Webhook URLs</label>
+                                                <div class="space-y-2" id="webhook-container">
+                                                    ${webhookUrls.map((url, index) => `
+                                                        <div class="flex items-center space-x-2">
+                                                            <input type="text" 
+                                                                   value="${url}" 
+                                                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                   placeholder="Enter webhook URL">
+                                                            <button onclick="saveWebhook(this, '${section}', '${key}', ${index})" 
+                                                                    class="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                Save
+                                                            </button>
+                                                            <button onclick="testWebhook(this, '${url}')" 
+                                                                    class="px-3 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                                                Test
+                                                            </button>
+                                                            <button onclick="removeWebhook(this, '${section}', '${key}', ${index})" 
+                                                                    class="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500">
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                                <button onclick="addWebhook('${section}', '${key}')" 
+                                                        class="mt-2 px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                                    Add Webhook
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+
+                                if (hasDropdown) {
+                                    return `
+                                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                            <span class="text-sm font-medium text-gray-700">${key}</span>
+                                            <div class="flex items-center space-x-2">
+                                                <select class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                        data-section="${section}"
+                                                        data-key="${key}">
+                                                    ${dropdownOptions[key].map(option => `
+                                                        <option value="${option.value}" ${value === option.value ? 'selected' : ''}>
+                                                            ${option.label}
+                                                        </option>
+                                                    `).join('')}
+                                                </select>
+                                                <button class="save-config p-1 text-indigo-600 hover:text-indigo-800"
+                                                        data-section="${section}"
+                                                        data-key="${key}">
+                                                    <i class="fas fa-save"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+
+                                return `
+                                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                        <span class="text-sm font-medium text-gray-700">${key}</span>
+                                        <div class="flex items-center space-x-2">
+                                            <input type="text" 
+                                                   class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                   value="${value}"
+                                                   data-section="${section}"
+                                                   data-key="${key}">
+                                            <button class="save-config p-1 text-indigo-600 hover:text-indigo-800"
+                                                    data-section="${section}"
+                                                    data-key="${key}">
+                                                <i class="fas fa-save"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                    configSections.appendChild(sectionDiv);
+                }
+
+                // Add event listeners for save buttons
+                document.querySelectorAll('.save-config').forEach(button => {
+                    button.addEventListener('click', async function() {
+                        const section = this.dataset.section;
+                        const key = this.dataset.key;
+                        const input = document.querySelector(`[data-section="${section}"][data-key="${key}"]`);
+                        const value = input.value;
+
+                        try {
+                            const response = await fetch(`/api/config/${section}/${key}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ value: value })
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Failed to update configuration');
+                            }
+
+                            // Show success message
+                            const successMessage = document.createElement('div');
+                            successMessage.className = 'text-sm text-green-600 mt-1';
+                            successMessage.textContent = 'Saved';
+                            input.parentElement.appendChild(successMessage);
+                            setTimeout(() => successMessage.remove(), 2000);
+
+                        } catch (error) {
+                            console.error('Error updating config:', error);
+                            // Show error message
+                            const errorMessage = document.createElement('div');
+                            errorMessage.className = 'text-sm text-red-600 mt-1';
+                            errorMessage.textContent = 'Error saving';
+                            input.parentElement.appendChild(errorMessage);
+                            setTimeout(() => errorMessage.remove(), 2000);
+                        }
+                    });
+                });
+
+                // Add event listeners for webhook management
+                document.querySelectorAll('.add-webhook').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const section = this.dataset.section;
+                        const key = this.dataset.key;
+                        const webhookList = this.closest('.col-span-2').querySelector('.webhook-list');
+                        const newIndex = webhookList.children.length;
+                        
+                        const webhookDiv = document.createElement('div');
+                        webhookDiv.className = 'flex items-center space-x-2 p-2 bg-white rounded-lg border border-gray-200';
+                        webhookDiv.innerHTML = `
+                            <input type="text" 
+                                   class="flex-1 text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                   placeholder="Enter webhook URL"
+                                   data-section="${section}"
+                                   data-key="${key}"
+                                   data-index="${newIndex}">
+                            <button class="save-webhook p-2 text-indigo-600 hover:text-indigo-800 rounded-full hover:bg-indigo-50"
+                                    data-section="${section}"
+                                    data-key="${key}"
+                                    data-index="${newIndex}">
+                                <i class="fas fa-save"></i>
+                            </button>
+                            <button class="remove-webhook p-2 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50"
+                                    data-section="${section}"
+                                    data-key="${key}"
+                                    data-index="${newIndex}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                        webhookList.appendChild(webhookDiv);
+                    });
+                });
+
+                document.querySelectorAll('.save-webhook').forEach(button => {
+                    button.addEventListener('click', async function() {
+                        const section = this.dataset.section;
+                        const key = this.dataset.key;
+                        const webhookList = this.closest('.webhook-list');
+                        const inputs = webhookList.querySelectorAll('input');
+                        const urls = Array.from(inputs).map(input => input.value).filter(Boolean);
+
+                        try {
+                            const response = await fetch(`/api/config/${section}/${key}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ value: urls })
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Failed to update webhooks');
+                            }
+
+                            // Show success message
+                            const successMessage = document.createElement('div');
+                            successMessage.className = 'text-sm text-green-600 mt-1';
+                            successMessage.textContent = 'Webhooks saved';
+                            this.parentElement.appendChild(successMessage);
+                            setTimeout(() => successMessage.remove(), 2000);
+
+                        } catch (error) {
+                            console.error('Error updating webhooks:', error);
+                            // Show error message
+                            const errorMessage = document.createElement('div');
+                            errorMessage.className = 'text-sm text-red-600 mt-1';
+                            errorMessage.textContent = 'Error saving webhooks';
+                            this.parentElement.appendChild(errorMessage);
+                            setTimeout(() => errorMessage.remove(), 2000);
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.remove-webhook').forEach(button => {
+                    button.addEventListener('click', async function() {
+                        const section = this.dataset.section;
+                        const key = this.dataset.key;
+                        const webhookList = this.closest('.webhook-list');
+                        const inputs = webhookList.querySelectorAll('input');
+                        const urls = Array.from(inputs)
+                            .map(input => input.value)
+                            .filter((url, index) => index !== parseInt(this.dataset.index));
+
+                        try {
+                            const response = await fetch(`/api/config/${section}/${key}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ value: urls })
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Failed to remove webhook');
+                            }
+
+                            // Remove the webhook div
+                            this.closest('.flex').remove();
+
+                        } catch (error) {
+                            console.error('Error removing webhook:', error);
+                            // Show error message
+                            const errorMessage = document.createElement('div');
+                            errorMessage.className = 'text-sm text-red-600 mt-1';
+                            errorMessage.textContent = 'Error removing webhook';
+                            this.parentElement.appendChild(errorMessage);
+                            setTimeout(() => errorMessage.remove(), 2000);
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error fetching config:', error);
+            }
+        }
+
+        // Log viewer functions
+        async function refreshLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch logs');
+                }
+                const data = await response.json();
+                const logContent = document.getElementById('log-content');
+                logContent.textContent = data.logs.join('');
+                // Scroll to bottom
+                const logContainer = document.getElementById('log-container');
+                logContainer.scrollTop = logContainer.scrollHeight;
+            } catch (error) {
+                console.error('Error fetching logs:', error);
+                const logContent = document.getElementById('log-content');
+                logContent.textContent = 'Error loading logs. Please try again.';
+            }
+        }
+
+        // Update all data including logs
+        async function updateAll() {
+            await Promise.all([
+                updateSystemStats(),
+                updateCacheStats(),
+                updateReleaseStats(),
+                updateConfig(),
+                refreshLogs()
+            ]);
+        }
+
+        // Initial update
+        updateAll();
+
+        // Refresh button click handler
+        document.getElementById('refreshBtn').addEventListener('click', updateAll);
+
+        // Auto-refresh every 30 seconds
+        setInterval(updateAll, 30000);
+
+        // Add these functions to the script section
+        async function saveWebhook(button, section, key, index) {
+            const container = button.closest('.flex');
+            const input = container.querySelector('input');
+            const url = input.value.trim();
+            
+            try {
+                // Get all current webhook URLs
+                const webhookContainer = document.getElementById('webhook-container');
+                const allInputs = webhookContainer.querySelectorAll('input');
+                const urls = Array.from(allInputs).map(input => input.value.trim()).filter(url => url);
+                
+                const response = await fetch(`/api/config/${section}/${key}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        value: urls
+                    })
+                });
+                
+                if (response.ok) {
+                    showMessage(container, 'Saved successfully!', 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(container, data.error || 'Failed to save', 'error');
+                }
+            } catch (error) {
+                showMessage(container, 'Error saving webhook', 'error');
+            }
+        }
+
+        async function removeWebhook(button, section, key, index) {
+            const container = button.closest('.flex');
+            const webhookContainer = document.getElementById('webhook-container');
+            
+            try {
+                // Get all current webhook URLs except the one being removed
+                const allInputs = webhookContainer.querySelectorAll('input');
+                const urls = Array.from(allInputs)
+                    .map(input => input.value.trim())
+                    .filter((url, i) => i !== index && url);
+                
+                const response = await fetch(`/api/config/${section}/${key}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        value: urls
+                    })
+                });
+                
+                if (response.ok) {
+                    container.remove();
+                    if (webhookContainer.children.length === 0) {
+                        addWebhook(section, key);
+                    }
+                } else {
+                    const data = await response.json();
+                    showMessage(container, data.error || 'Failed to remove', 'error');
+                }
+            } catch (error) {
+                showMessage(container, 'Error removing webhook', 'error');
+            }
+        }
+
+        function addWebhook(section, key) {
+            const webhookContainer = document.getElementById('webhook-container');
+            const newIndex = webhookContainer.children.length;
+            
+            const newWebhook = document.createElement('div');
+            newWebhook.className = 'flex items-center space-x-2';
+            newWebhook.innerHTML = `
+                <input type="text" 
+                       value="" 
+                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Enter webhook URL">
+                <button onclick="saveWebhook(this, '${section}', '${key}', ${newIndex})" 
+                        class="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    Save
+                </button>
+                <button onclick="testWebhook(this, '')" 
+                        class="px-3 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                    Test
+                </button>
+                <button onclick="removeWebhook(this, '${section}', '${key}', ${newIndex})" 
+                        class="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500">
+                    Remove
+                </button>
+            `;
+            
+            webhookContainer.appendChild(newWebhook);
+            newWebhook.querySelector('input').focus();
+        }
+
+        function showMessage(container, message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `mt-2 text-sm ${type === 'success' ? 'text-green-600' : 'text-red-600'}`;
+            messageDiv.textContent = message;
+            
+            container.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), 3000);
+        }
+
+        // Add this function to the script section
+        async function testWebhook(button, url) {
+            const container = button.closest('.flex');
+            try {
+                const response = await fetch('/api/test-webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ webhook_url: url })
+                });
+                
+                if (response.ok) {
+                    showMessage(container, 'Test message sent successfully!', 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(container, data.error || 'Failed to send test message', 'error');
+                }
+            } catch (error) {
+                showMessage(container, 'Error sending test message', 'error');
+            }
+        }
+
+        // Add this function to the script section
+        async function runNow() {
+            try {
+                const response = await fetch('/api/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    showMessage(document.querySelector('.text-sm.text-gray-500'), 'Program started successfully!', 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(document.querySelector('.text-sm.text-gray-500'), data.error || 'Failed to start program', 'error');
+                }
+            } catch (error) {
+                showMessage(document.querySelector('.text-sm.text-gray-500'), 'Error starting program', 'error');
+            }
+        }
+    </script>
+</body>
+</html> 

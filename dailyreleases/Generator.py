@@ -167,10 +167,15 @@ class Generator:
 
         if discord_post:
             # post to discord
-            webhook_url = CONFIG.CONFIG["discord"]["webhook_url"]
-            webhook = DiscordWebhook(url=webhook_url, content=title)
-            webhook.add_file(generated_post.encode(), filename=title + '.txt')
-            webhook.execute()
+            webhook_urls = CONFIG.CONFIG["discord"]["webhook_url"]
+            if isinstance(webhook_urls, str):
+                webhook_urls = [webhook_urls]
+            
+            for webhook_url in webhook_urls:
+                if webhook_url.strip():  # Only process non-empty URLs
+                    webhook = DiscordWebhook(url=webhook_url, content=title)
+                    webhook.add_file(generated_post.encode(), filename=title + '.txt')
+                    webhook.execute()
 
         self.cache.clean()
         logger.info("Execution took %s seconds", int(time.time() - start_time))
