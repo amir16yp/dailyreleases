@@ -7,12 +7,9 @@ mode = admin
 egs_offeridapi_url = https://raw.githubusercontent.com/sffxzzp/EpicInfo/main/offerid.json
 # how many times to retry if fails to post
 retry = 3
-# backup NFO files locally or not
-backup_nfos = no
 
 [logging]
 level = INFO
-backup_count = 10
 
 [discord]
 # Webhook URLs for Discord notifications

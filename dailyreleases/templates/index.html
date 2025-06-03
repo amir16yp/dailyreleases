@@ -106,13 +106,28 @@
         </div>
 
         <!-- Configuration -->
-        <div class="bg-white rounded-lg shadow">
+        <div class="bg-white rounded-lg shadow mb-8">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h3 class="text-lg font-medium text-gray-900">Configuration</h3>
             </div>
             <div class="p-6">
                 <div id="config-sections" class="space-y-6">
                     <!-- Configuration sections will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Program Logs</h3>
+                <button onclick="refreshLogs()" class="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div id="log-container" class="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm overflow-auto" style="height: 400px;">
+                    <div class="whitespace-pre-wrap" id="log-content">Loading logs...</div>
                 </div>
             </div>
         </div>
@@ -259,9 +274,15 @@
                         <h4 class="text-md font-medium text-gray-900">${section}</h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             ${Object.entries(values).map(([key, value]) => {
-                                const isReadOnly = section === 'admin' && (key === 'username' || key === 'password');
+                                const isReadOnly = (section === 'admin' && (key === 'username' || key === 'password' || key === 'host' || key === 'port')) ||
+                                                 (section === 'main' && key === 'mode');
                                 const hasDropdown = dropdownOptions[key];
                                 const isWebhook = key === 'webhook_url' || key === 'webhook_urls';
+                                
+                                // Skip backup-related settings
+                                if (key === 'backup_count' || key === 'backup_nfos') {
+                                    return '';
+                                }
                                 
                                 if (isReadOnly) {
                                     return `
@@ -523,13 +544,34 @@
             }
         }
 
-        // Update all data
+        // Log viewer functions
+        async function refreshLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch logs');
+                }
+                const data = await response.json();
+                const logContent = document.getElementById('log-content');
+                logContent.textContent = data.logs.join('');
+                // Scroll to bottom
+                const logContainer = document.getElementById('log-container');
+                logContainer.scrollTop = logContainer.scrollHeight;
+            } catch (error) {
+                console.error('Error fetching logs:', error);
+                const logContent = document.getElementById('log-content');
+                logContent.textContent = 'Error loading logs. Please try again.';
+            }
+        }
+
+        // Update all data including logs
         async function updateAll() {
             await Promise.all([
                 updateSystemStats(),
                 updateCacheStats(),
                 updateReleaseStats(),
-                updateConfig()
+                updateConfig(),
+                refreshLogs()
             ]);
         }
 

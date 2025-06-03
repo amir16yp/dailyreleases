@@ -288,11 +288,21 @@ def config_value(section, key):
                     value = value.strip()
                     section_config[key] = value if value else ''
             else:
+                # Validate logging level if it's being changed
+                if section == 'logging' and key == 'level':
+                    valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+                    if data['value'] not in valid_levels:
+                        return jsonify({'error': 'Invalid logging level'}), 400
+                
                 section_config[key] = str(data['value'])
             
             # Save to file
             with open(CONFIG.CONFIG_FILE, 'w') as configfile:
                 CONFIG.CONFIG.write(configfile)
+            
+            # Reinitialize logging if logging level was changed
+            if section == 'logging' and key == 'level':
+                CONFIG.initialize_logging()
             
             return jsonify({'success': True})
     except Exception as e:
@@ -327,6 +337,37 @@ def test_webhook():
             
     except Exception as e:
         app.logger.error(f"Error testing webhook: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/logs')
+@requires_auth
+def get_logs():
+    try:
+        log_file = CONFIG.DATA_DIR.joinpath("logs/main.log")
+        if not log_file.exists():
+            return jsonify({'error': 'Log file not found'}), 404
+        
+        # Read the last 1000 lines of the log file
+        with open(log_file, 'r', encoding='utf-8') as f:
+            # Get the last 1000 lines
+            lines = f.readlines()[-1000:]
+            
+            # Filter out Flask server logs
+            filtered_lines = [line for line in lines if not any(x in line for x in [
+                'werkzeug',
+                'flask',
+                'Running on',
+                '127.0.0.1',
+                'GET /api/',
+                'POST /api/',
+                'PUT /api/'
+            ])]
+            
+            return jsonify({
+                'logs': filtered_lines
+            })
+    except Exception as e:
+        app.logger.error(f"Error reading logs: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 def run_admin_panel(host='127.0.0.1', port=5000):
