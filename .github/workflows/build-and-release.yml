@@ -20,31 +20,30 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.12'
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pyinstaller
+        pip install nuitka
     
-    - name: Build with PyInstaller
+    - name: Build with Nuitka
       run: |
-        pyinstaller --onefile --name daily-releases \
-          dailyreleases.py
+        python -m nuitka --standalone --onefile --remove-output dailyreleases.py
     
     - name: Upload Linux Build Artifact
       uses: actions/upload-artifact@v4
       with:
         name: daily-releases-linux
-        path: dist/daily-releases
+        path: dailyreleases.dist/dailyreleases
         if-no-files-found: error
     
     - name: Release
       if: github.ref_type == 'tag'
       uses: softprops/action-gh-release@v2
       with:
-        files: dist/daily-releases
+        files: dailyreleases.dist/dailyreleases
   
   build-windows:
     runs-on: windows-latest
@@ -54,33 +53,33 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.12'
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pyinstaller
+        pip install nuitka
     
-    - name: Build with PyInstaller
+    - name: Build with Nuitka
       run: |
-        pyinstaller --onefile --name daily-releases.exe dailyreleases.py
+        python -m nuitka --standalone --onefile --remove-output dailyreleases.py
     
     - name: Upload Windows Build Artifact
       uses: actions/upload-artifact@v4
       with:
         name: daily-releases-windows
-        path: dist/daily-releases.exe
+        path: dailyreleases.dist/dailyreleases.exe
         if-no-files-found: error
     
     - name: Release
       if: github.ref_type == 'tag'
       uses: softprops/action-gh-release@v2
       with:
-        files: dist/daily-releases.exe 
+        files: dailyreleases.dist/dailyreleases.exe
     - name: Upload to Release
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v1
       with:
-        files: dist/daily-releases.exe
+        files: dailyreleases.dist/dailyreleases.exe
         tag_name: ${{ github.event.release.tag_name }} 
