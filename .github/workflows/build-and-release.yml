@@ -37,8 +37,7 @@ jobs:
       with:
         name: daily-releases-linux
         path: |
-          ./dailyreleases
-          !./dailyreleases/
+          ./dailyreleases.bin
         if-no-files-found: error
     
     - name: Release
